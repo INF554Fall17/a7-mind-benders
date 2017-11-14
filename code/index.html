@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Los Angeles Neighborhoods Map</title>
+<meta charset="utf-8">
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://d3js.org/topojson.v1.min.js"></script>
+<script src="http://cdn.leafletjs.com/leaflet-0.7/leaflet.js"></script>
+<script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
+<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7/leaflet.css" />
+<link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+<div id="map"></div>
+</body>
+
+<script>
+var width = 960,
+    height = 600,
+    active = d3.select(null);
+
+// Set map wrapper size.
+d3.select('#map')
+  .style('width', width + 'px')
+  .style('height', height + 'px');
+
+// Create Leftlet map and center in the desired position.
+var map = L.map('map').setView([34.3, -118.300], 9);
+
+// Mapbox
+var tiles = 'https://{s}.tiles.mapbox.com/v3/examples.map-i87786ca/{z}/{x}/{y}.png';
+// Openstreetmap
+//var tiles = 'http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+// Add openstreetmap tile layer.
+L.tileLayer(tiles, { maxZoom: 15 }).addTo(map);
+
+/* Initialize the SVG layer */
+map._initPathRoot();
+
+// Create the svg element inside the div.
+//var svg = d3.select("#map").select("svg");
+var svg = d3.select(map.getPanes().overlayPane).append("svg");
+var g = svg.append("g").attr("class", "leaflet-zoom-hide");
+
+// Initialize tooltips.
+var tip = d3.tip()
+  .attr('class', 'd3-tip')
+  .offset([10, -10])
+  .html(function(d) { return d.properties.name; });
+svg.call(tip);
+
+// Use Leaflet to implement a D3 geometric transformation.
+function projectPoint(x, y) {
+  var point = map.latLngToLayerPoint(new L.LatLng(y, x));
+  this.stream.point(point.x, point.y);
+}
+
+// Create a d3.geo.path to convert GeoJSON to SVG.
+var transform = d3.geo.transform({point: projectPoint});
+var path = d3.geo.path()
+  .projection(transform);
+
+// Random color function.
+var color = function(d) {
+  return 'blue';
+};
+
+// Load json and display.
+d3.json("la.json", function(data) {
+  // Create a topojson feature using the geojson.
+  var neigh = topojson.feature(data, data.objects.la_county_neighborhoods_current);
+
+  var cname = 'neigh';
+  var neigh_path = g.selectAll('.' + cname)
+    .data(neigh.features)
+    .enter()
+     .append('path')
+     .attr('d', path)
+     .classed(cname, true)
+     .style('fill', color)
+     .style('fill-opacity', 0.1)
+     .style("stroke", "	blue")
+     .style('stroke-opacity', 0.8)
+     .attr('name', function(d) { return d.properties.name; })
+     .on('mouseover', function() {
+         if (active.node() === this) return;
+
+         tip.show(this.__data__);
+         d3.select(this)
+           .style('stroke', 1)
+           .style('fill', 'orange')
+           .style('fill-opacity', 0.7)
+           .style('stroke-opacity', 1);
+     })
+     .on('mouseout', function() {
+         if (active.node() === this) return;
+
+         tip.hide(this.__data__);
+         d3.select(this)
+           .transition().duration(250)
+           .style('stroke', 1)
+           .style('fill', color)
+           .style('fill-opacity', 0.1)
+           //.style('stroke-opacity', 0.3)
+           .style("stroke", "	blue")
+     .style('stroke-opacity', 0.8);
+     })
+     .on("click", clicked);
+
+  // Set the map reset event.
+  map.on("viewreset", reset);
+
+  // Initialize.
+  reset();
+
+  // When the map reset event is called, recalculate the paths and svg size and position.
+  function reset() {
+    var bounds = path.bounds(neigh),
+        topLeft = bounds[0],
+        bottomRight = bounds[1];
+
+    svg.attr("width", bottomRight[0] - topLeft[0])
+      .attr("height", bottomRight[1] - topLeft[1])
+      .style("left", topLeft[0] + "px")
+      .style("top", topLeft[1] + "px");
+
+    g.attr("transform", "translate(" + -topLeft[0] + "," + -topLeft[1] + ")");
+
+    neigh_path.attr('d', path);
+  }
+
+  function clicked(d) {
+    if (active.node() === this) return zoom_reset();
+    active.classed("active", false)
+        .style('fill', 'blue')
+        .style('fill-opacity', 0.1)
+        .style("stroke", "	blue")
+        .style('stroke-opacity', 0.8);
+
+    active = d3.select(this)
+        .classed("active", true)
+        .style('fill', 'red')
+        .style('fill-opacity', 0.7);
+
+    var nbounds = d3.geo.bounds(d);
+
+    var southWest = L.latLng(nbounds[0][1], nbounds[0][0]),
+        northEast = L.latLng(nbounds[1][1], nbounds[1][0]),
+        neigh_bounds = L.latLngBounds(southWest, northEast);
+
+    map.fitBounds(neigh_bounds);
+  }
+
+  function zoom_reset() {
+    active.classed("active", false)
+        .style('fill', color)
+        .style('fill-opacity', 0.1)
+        .style("stroke", "	blue")
+        .style('stroke-opacity', 0.8);
+
+    active = d3.select(null);
+
+    map.setView([34.3, -118.300], 9);
+  }
+});
+
+</script>
+
+</html>
