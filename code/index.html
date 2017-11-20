@@ -1,171 +1,400 @@
-<!DOCTYPE html>
 <html>
+
 <head>
-<title>Los Angeles Neighborhoods Map</title>
-<meta charset="utf-8">
-<script src="http://d3js.org/d3.v3.min.js"></script>
-<script src="http://d3js.org/topojson.v1.min.js"></script>
-<script src="http://cdn.leafletjs.com/leaflet-0.7/leaflet.js"></script>
-<script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
-<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7/leaflet.css" />
-<link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.2.0/dist/leaflet.css" integrity="sha512-M2wvCLH6DSRazYeZRIm1JnYyh22purTM+FDB5CsyxtQJYeKq83arPe5wgbNmcFXGqiSH2XR8dT/fJISVA1r/zQ=="
+        crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.2.0/dist/leaflet.js" integrity="sha512-lInM/apFSqyy1o6s89K4iQUKg6ppXEgsVxT35HbzUupEVRh2Eu9Wdl4tHj7dZO0s1uvplcYGmt3498TtHq+log=="
+        crossorigin=""></script>
+
+    <script src="http://d3js.org/d3.v4.min.js"></script>
+    <style type="text/css">
+        #mapid {
+            height: 500px;
+        }
+
+        .info {
+            padding: 6px 8px;
+            font: 14px/16px Arial, Helvetica, sans-serif;
+            background: white;
+            background: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+        }
+
+        .info h4 {
+            margin: 0 0 5px;
+            color: #777;
+        }
+
+        .legend {
+            line-height: 18px;
+            color: #555;
+        }
+
+        .legend i {
+            width: 18px;
+            height: 18px;
+            float: left;
+            margin-right: 8px;
+            opacity: 0.7;
+        }
+    </style>
 </head>
 
 <body>
-<div id="map"></div>
+    <div id="mapid"></div>
+    <div id="corr_bar"></div>
+    <script type="text/javascript">
+        var global_data = [];
+
+        keys = ["price", "crime"];
+
+        var margin = { top: 20, right: 20, bottom: 30, left: 40 },
+            width = 800 - margin.left - margin.right,
+            height = 400 - margin.top - margin.bottom;
+        global_data.push({ neigh: "Long Beach", price: 960.87, crime: 601 });
+        global_data.push({ neigh: "Malibu", price: 257.69, crime: 676 });
+        global_data.push({ neigh: "Torrance", price: 700.46, crime: 790 });
+
+        // the scale for the state age value
+        var x = d3.scaleLinear().range([0, width]);
+
+        // the scale for each state
+        var y0 = d3.scaleBand().rangeRound([0, height])
+            .paddingInner(0.1)
+            ;
+        // the scale for each state age
+        var y1 = d3.scaleBand();
+
+        // just a simple scale of colors
+        var color = d3.scaleOrdinal()
+            .range(["#98abc5", "black"]);
+
+        var xAxis = d3.axisBottom(x);
+        var yAxis = d3.axisLeft(y0);
+
+        var svg = d3.select("#corr_bar").append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+		/* var height = 600, width = 960, padding = 80, hpad = 80
+		var margin = { top: 20, right: 20, bottom: 30, left: 40 };
+		var svg = d3.select('#corr_bar')//create <svg>
+			.append('svg').attr('width', width - margin.left - margin.right).attr('height', height - margin.top - margin.bottom); */
+
+        d3.json("la_county_neighborhoods_updated_price.geojson", function (data) {
+            //console.log(data)
+            // L.geoJson function is used to parse geojson file and load on to map
+            var mymap = L.map('mapid').setView([34.0522, -118.2437], 10);
+            // var mymap = L.map('mapid').setView([51.505, -0.09], 13);
+            L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}', {
+                attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://mapbox.com">Mapbox</a>',
+                maxZoom: 18,
+                id: 'mapbox.streets',
+                accessToken: 'pk.eyJ1Ijoib3N1YmEiLCJhIjoiY2phMGluZnQ0MzVpejJwcG8zM2pqdzY0OCJ9.9TdOSdm8ZeQ599APXk1Jiw'
+            }).addTo(mymap);
+
+
+
+			/* 			var height = 600, width = 960, padding = 80, hpad = 80
+						var margin = { top: 20, right: 20, bottom: 30, left: 40 };
+						var svg = d3.select('#corr_bar')//create <svg>
+							.append('svg').attr('width', width - margin.left - margin.right).attr('height', height - margin.top - margin.bottom);
+						g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+						global_data.push({neigh: "Long Beach", price: 96.87, crime: 601});
+						global_data.push({neigh: "Malibu", price: 257.69, crime: 676});
+						global_data.push({neigh: "Torrance", price: 70.46, crime: 790}); */
+
+            var popup = L.popup();
+
+            function onMapClick(e) {
+                console.log(e);
+                popup
+                    .setLatLng(e.latlng)
+                    .setContent("You clicked the map at " + e.latlng.toString())
+                    .openOn(mymap);
+            }
+
+            mymap.on('click', onMapClick);
+
+            var myStyle = {
+                "weight": 1,
+                "opacity": 0.55
+            };
+
+            L.geoJSON(data, {
+                style: myStyle
+            }).addTo(mymap);
+
+            function getColor(d) {
+                return d > 1000 ? '#800026' :
+                    d > 500 ? '#BD0026' :
+                        d > 200 ? '#E31A1C' :
+                            d > 100 ? '#FC4E2A' :
+                                d > 50 ? '#FD8D3C' :
+                                    d > 20 ? '#FEB24C' :
+                                        d > 10 ? '#FED976' :
+                                            '#FFEDA0';
+            }
+
+            function style(feature) {
+                return {
+                    fillColor: getColor(feature.properties.crime_count),
+                    weight: 2,
+                    opacity: 1,
+                    color: 'white',
+                    dashArray: '3',
+                    fillOpacity: 0.7
+                };
+
+            }
+
+            L.geoJson(data, { style: style }).addTo(mymap);
+
+            var geojson;
+
+            function highlightFeature(e) {
+                var layer = e.target;
+
+                layer.setStyle({
+                    weight: 5,
+                    color: '#666',
+                    dashArray: '',
+                    fillOpacity: 0.7
+                });
+
+                if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                    layer.bringToFront();
+                }
+                info.update(layer.feature.properties);
+            }
+
+            function resetHighlight(e) {
+                geojson.resetStyle(e.target);
+                info.update();
+            }
+
+            function zoomToFeature(e) {
+                //mymap.fitBounds(e.target.getBounds());
+                // Add the data to array to use for correlation bar graph
+                e_prop = e.target.feature.properties
+                var val = {}
+                var keys1 = [];
+                if (global_data.length > 0) {
+                    keys1 = global_data.map(function (d) { return (d.neigh) });
+                }
+                if (keys1.indexOf(e_prop.name) != -1) {
+                    global_data.splice(keys1.indexOf(e_prop.name), 1);
+                }
+                else {
+                    if (e_prop.crime_count != undefined) {
+                        val["neigh"] = e_prop.name
+                        val["price"] = e_prop.price_per_room;
+                        val["crime"] = e_prop.crime_count;
+                        global_data.push(val);
+                    }
+
+                }
+                //update_plot();
+
+            }
+
+            function onEachFeature(feature, layer) {
+                layer.on({
+                    mouseover: highlightFeature,
+                    mouseout: resetHighlight,
+                    click: zoomToFeature
+                });
+            }
+
+            geojson = L.geoJson(data, {
+                style: style,
+                onEachFeature: onEachFeature
+            }).addTo(mymap);
+
+            var info = L.control();
+
+            info.onAdd = function (map) {
+                this._div = L.DomUtil.create('div', 'info'); // create a div with a class "info"
+                this.update();
+                return this._div;
+            };
+
+            // method that we will use to update the control based on feature properties passed
+            info.update = function (props) {
+                this._div.innerHTML = '<h4>Los Angeles Crime Count</h4>' + (props ?
+                    '<b>' + props.name + '</b><br />' + props.crime_count + ' crime count'
+                    : 'Hover over a state');
+            };
+
+            info.addTo(mymap);
+
+            var legend = L.control({ position: 'bottomright' });
+
+            legend.onAdd = function (map) {
+
+                var div = L.DomUtil.create('div', 'info legend'),
+                    grades = [0, 10, 20, 50, 100, 200, 500, 1000],
+                    labels = [];
+
+                // loop through our density intervals and generate a label with a colored square for each interval
+                for (var i = 0; i < grades.length; i++) {
+                    div.innerHTML +=
+                        '<i style="background:' + getColor(grades[i] + 1) + '"></i> ' +
+                        grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+');
+                }
+
+                return div;
+            };
+
+            legend.addTo(mymap);
+
+            mymap.createPane('labels');
+
+            mymap.getPane('labels').style.zIndex = 650;
+
+            mymap.getPane('labels').style.pointerEvents = 'none';
+
+            var positron = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', {
+                attribution: '©OpenStreetMap, ©CartoDB'
+            }).addTo(mymap);
+
+            var positronLabels = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png', {
+                attribution: '©OpenStreetMap, ©CartoDB',
+                pane: 'labels'
+            }).addTo(mymap);
+
+            // plot the correlation map
+            corr_barplot();
+
+        });
+
+        function corr_barplot() {
+/*             keys = ["price", "crime"];
+
+            var margin = { top: 20, right: 20, bottom: 30, left: 40 },
+                width = 800 - margin.left - margin.right,
+                height = 400 - margin.top - margin.bottom;
+            global_data.push({ neigh: "Long Beach", price: 960.87, crime: 601 });
+            global_data.push({ neigh: "Malibu", price: 257.69, crime: 676 });
+            global_data.push({ neigh: "Torrance", price: 700.46, crime: 790 });
+
+            // the scale for the state age value
+            var x = d3.scaleLinear().range([0, width]);
+
+            // the scale for each state
+            var y0 = d3.scaleBand().rangeRound([0, height])
+                .paddingInner(0.1)
+                ;
+            // the scale for each state age
+            var y1 = d3.scaleBand();
+
+            // just a simple scale of colors
+            var color = d3.scaleOrdinal()
+                .range(["#98abc5", "black"]);
+
+            var xAxis = d3.axisBottom(x);
+            var yAxis = d3.axisLeft(y0);
+
+            var svg = d3.select("#corr_bar").append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g") 
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");*/
+
+            x.domain([0, 0]);
+            // y0 domain is all the state names
+            y0.domain(global_data.map(function (d) { return d.neigh; }));
+            // y1 domain is all the age names, we limit the range to from 0 to a y0 band
+            y1.domain(keys).rangeRound([0, 40]);
+
+            svg.append("g")
+                .attr("class", "x axis")
+                .attr("transform", "translate(0," + height + ")")
+                .call(xAxis);
+
+            svg.append("g")
+                .attr("class", "y axis")
+                .call(yAxis);
+
+            update_plot();
+        };
+
+        function update_plot() {
+/* 
+            var margin = { top: 20, right: 20, bottom: 30, left: 40 },
+                width = 800 - margin.left - margin.right,
+                height = 400 - margin.top - margin.bottom;
+            // the scale for the state age value
+            var x = d3.scaleLinear().range([0, width]);
+
+            // the scale for each state
+            var y0 = d3.scaleBand().rangeRound([0, height])
+                .paddingInner(0.1)
+                ;
+            // the scale for each state age
+            var y1 = d3.scaleBand();
+
+            // just a simple scale of colors
+            var color = d3.scaleOrdinal()
+                .range(["#98abc5", "black"]);
+
+            var keys = ["price", "crime"]; */
+
+            var data = global_data.map(function (g_data) {
+                return {
+                    neigh: g_data.neigh,
+                    values: [{
+                        price: g_data.price                    
+                        }, {
+                        crime: g_data.crime
+                    }]
+                };
+            });
+
+            // x domain is between 0 and the maximun value in any ages.value
+            x.domain([0, d3.max(global_data, function (d) { return d3.max(keys, function (key) { return d[key]; }); })]);
+            // y0 domain is all the state names
+            y0.domain(global_data.map(function (d) { return d.neigh; }));
+            // y1 domain is all the age names, we limit the range to from 0 to a y0 band
+            y1.domain(keys).rangeRound([0, 40]);
+
+            svg.selectAll('.axis.x').call(xAxis);
+            svg.selectAll('.axis.y').call(yAxis);
+
+            var bar = svg.selectAll(".bar")
+                .data(data);
+
+            bar.enter().append("g")
+                .attr("class", "bar")
+                .attr("transform", function (d) { return "translate(0, " + y0(d.neigh) + ")"; });
+
+            var bar_val = bar.selectAll("rect")
+                .data(function (d) { return d.values; })
+                .enter().append("rect")
+                .attr('width', 0);
+
+            // we append a new rect every time we have an extra data vs dom element
+            
+
+            bar_val
+                .attr("x", 0)
+                .attr("y", function (d, index) { 
+                    return y1(keys[index]); })
+                .style("fill", function (d) { 
+                    return color(d.key); })
+                .transition()
+                .attr("width", function (d) { 
+                    return x(d.value); })
+                .attr("height", y1.bandwidth());
+
+            bar_val.exit().transition().attr("width", 0).remove();
+
+
+        }
+    </script>
 </body>
-
-<script>
-var width = 960,
-    height = 600,
-    active = d3.select(null);
-
-// Set map wrapper size.
-d3.select('#map')
-  .style('width', width + 'px')
-  .style('height', height + 'px');
-
-// Create Leftlet map and center in the desired position.
-var map = L.map('map').setView([34.3, -118.300], 9);
-
-// Mapbox
-var tiles = 'https://{s}.tiles.mapbox.com/v3/examples.map-i87786ca/{z}/{x}/{y}.png';
-// Openstreetmap
-//var tiles = 'http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-
-// Add openstreetmap tile layer.
-L.tileLayer(tiles, { maxZoom: 15 }).addTo(map);
-
-/* Initialize the SVG layer */
-map._initPathRoot();
-
-// Create the svg element inside the div.
-//var svg = d3.select("#map").select("svg");
-var svg = d3.select(map.getPanes().overlayPane).append("svg");
-var g = svg.append("g").attr("class", "leaflet-zoom-hide");
-
-// Initialize tooltips.
-var tip = d3.tip()
-  .attr('class', 'd3-tip')
-  .offset([10, -10])
-  .html(function(d) { return d.properties.name; });
-svg.call(tip);
-
-// Use Leaflet to implement a D3 geometric transformation.
-function projectPoint(x, y) {
-  var point = map.latLngToLayerPoint(new L.LatLng(y, x));
-  this.stream.point(point.x, point.y);
-}
-
-// Create a d3.geo.path to convert GeoJSON to SVG.
-var transform = d3.geo.transform({point: projectPoint});
-var path = d3.geo.path()
-  .projection(transform);
-
-// Random color function.
-var color = function(d) {
-  return 'blue';
-};
-
-// Load json and display.
-d3.json("la.json", function(data) {
-  // Create a topojson feature using the geojson.
-  var neigh = topojson.feature(data, data.objects.la_county_neighborhoods_current);
-
-  var cname = 'neigh';
-  var neigh_path = g.selectAll('.' + cname)
-    .data(neigh.features)
-    .enter()
-     .append('path')
-     .attr('d', path)
-     .classed(cname, true)
-     .style('fill', color)
-     .style('fill-opacity', 0.1)
-     .style("stroke", "	blue")
-     .style('stroke-opacity', 0.8)
-     .attr('name', function(d) { return d.properties.name; })
-     .on('mouseover', function() {
-         if (active.node() === this) return;
-
-         tip.show(this.__data__);
-         d3.select(this)
-           .style('stroke', 1)
-           .style('fill', 'orange')
-           .style('fill-opacity', 0.7)
-           .style('stroke-opacity', 1);
-     })
-     .on('mouseout', function() {
-         if (active.node() === this) return;
-
-         tip.hide(this.__data__);
-         d3.select(this)
-           .transition().duration(250)
-           .style('stroke', 1)
-           .style('fill', color)
-           .style('fill-opacity', 0.1)
-           //.style('stroke-opacity', 0.3)
-           .style("stroke", "	blue")
-     .style('stroke-opacity', 0.8);
-     })
-     .on("click", clicked);
-
-  // Set the map reset event.
-  map.on("viewreset", reset);
-
-  // Initialize.
-  reset();
-
-  // When the map reset event is called, recalculate the paths and svg size and position.
-  function reset() {
-    var bounds = path.bounds(neigh),
-        topLeft = bounds[0],
-        bottomRight = bounds[1];
-
-    svg.attr("width", bottomRight[0] - topLeft[0])
-      .attr("height", bottomRight[1] - topLeft[1])
-      .style("left", topLeft[0] + "px")
-      .style("top", topLeft[1] + "px");
-
-    g.attr("transform", "translate(" + -topLeft[0] + "," + -topLeft[1] + ")");
-
-    neigh_path.attr('d', path);
-  }
-
-  function clicked(d) {
-    if (active.node() === this) return zoom_reset();
-    active.classed("active", false)
-        .style('fill', 'blue')
-        .style('fill-opacity', 0.1)
-        .style("stroke", "	blue")
-        .style('stroke-opacity', 0.8);
-
-    active = d3.select(this)
-        .classed("active", true)
-        .style('fill', 'red')
-        .style('fill-opacity', 0.7);
-
-    var nbounds = d3.geo.bounds(d);
-
-    var southWest = L.latLng(nbounds[0][1], nbounds[0][0]),
-        northEast = L.latLng(nbounds[1][1], nbounds[1][0]),
-        neigh_bounds = L.latLngBounds(southWest, northEast);
-
-    map.fitBounds(neigh_bounds);
-  }
-
-  function zoom_reset() {
-    active.classed("active", false)
-        .style('fill', color)
-        .style('fill-opacity', 0.1)
-        .style("stroke", "	blue")
-        .style('stroke-opacity', 0.8);
-
-    active = d3.select(null);
-
-    map.setView([34.3, -118.300], 9);
-  }
-});
-
-</script>
 
 </html>
