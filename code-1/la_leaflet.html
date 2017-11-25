@@ -68,7 +68,7 @@
 
 	//Map
    	var barData=[];
-   	d3.json("la_county_neighborhoods_updated_crime_type.geojson",function(data){
+   	d3.json("la_county_neighborhoods_updated_crimetype.geojson",function(data){
    		// console.log(data);
 
 	// L.geoJson function is used to parse geojson file and load on to map
@@ -181,9 +181,19 @@
 			var layer = e.target;
 			// update_bar(layer.feature.properties)
 			// replay(layer.feature.properties);
+			add=true;
 			if (layer.feature.properties.crime_count>0){
-				barData.push(layer.feature.properties);
-				replay(barData);
+				// for(var i = 0; i<barData.length;i++){
+				// 	if (barData[i].name==layer.feature.properties.name){
+				// 		add=false;
+				// 	}
+				// }
+				// if(add){
+					barData.push(layer.feature.properties);
+					// console.log(barData);
+					replay(barData);
+				// }
+				
 			}
 			
 		}
@@ -199,20 +209,37 @@
 			div.className = 'popupGraph';
 			div.innerHTML = '<svg/>';
 
-			var popup = L.popup().setContent(div);
-			layer.bindPopup(popup);
+			// var popup = L.popup().setContent(div);
+			// layer.bindPopup(popup);
             
             var values = feature.properties;
-            var data = [
-                {name:"Educ",value:values["Educ"]},
-                {name:"Earnings",value:values["Earnings"]},
-                {name:"Ind",value:values["Ind"]},
-                {name:"Housing",value:values["Housing"]},
-                {name:"AccToSer",value:values["AccToSer"]},
-                {name:"EcPerfInd",value:values["EcPerfInd"]}
-            ];
-            var margin = {top: 20, right: 30, bottom: 40, left: 40},
-                width = 250 - margin.left - margin.right,
+            var data = [];
+            // console.log(values);
+            var crime_types=["arson","burglary","federal_offenses","felonies_miscellaneous","fraud_and_nsf_checks","grand_theft_auto","larceny_theft","narcotics","rape","robbery","sex_offenses"];
+            for (var key in values){
+            	if (crime_types.indexOf(key) > -1){
+            		data.push({name:key, value:values[key]});
+            	}  	
+            }
+            if (data.length>0){
+            	var popup = L.popup().setContent(div);
+				layer.bindPopup(popup);
+            }
+            // var data = [
+            //     {name:"arson",value:values["arson"]},
+            //     {name:"burglary",value:values["burglary"]},
+            //     {name:"federal_offenses",value:values["federal_offenses"]},
+            //     {name:"felonies_miscellaneous",value:values["felonies_miscellaneous"]},
+            //     {name:"fraud_and_nsf_checks",value:values["fraud_and_nsf_checks"]},
+            //     {name:"grand_theft_auto",value:values["grand_theft_auto"]},
+            //     {name:"larceny_theft",value:values["larceny_theft"]},
+            //     {name:"narcotics",value:values["narcotics"]},
+            //     {name:"rape",value:values["rape"]},
+            //     {name:"robbery",value:values["robbery"]},
+            //     {name:"sex_offenses",value:values["sex_offenses"]}
+            // ];
+            var margin = {top: 5, right: 80, bottom: 40, left: 40},
+                width = 300 - margin.left - margin.right,
                 height = 200 - margin.top - margin.bottom,
                 barHeight = height / data.length;
       
@@ -246,7 +273,7 @@
                 .attr("height", barHeight - 1);
             
             bar.append("text")
-                .attr("x", function(d) { return x(d.value) - 3; })
+                .attr("x", function(d) { return x(d.value) + 5; })
                 .attr("y", barHeight / 2)
                 .attr("dy", ".35em")
                 .text(function(d) { return d.name; });
@@ -313,7 +340,7 @@
 		// properties.slice(0,10).map(function(d){ console.log(d)});
 		// replay(properties.slice(0,1));
 		// console.log(properties.slice(0,1));
-		// replay(properties.slice(0,5));
+		// replay(properties.slice(3,4));
 	});
 
 // Mike Bostock "margin conventions"
@@ -348,25 +375,7 @@ var yAxisRight = d3.axisRight().scale(y1);
 
 
 var color = d3.scaleOrdinal(d3.schemeCategory10);
-    // .orient("right").ticks(5); 
-// var yAxisRight = d3.axisRight()
-//     .scale(y)
 
-// define the 1st line
-// var valueline = d3.line()
-//     .x(function(d) { return x(d.name); })
-//     .y(function(d) { return y(d.crime_count); });
-
-// // define the 2nd line
-// var valueline2 = d3.line()
-//     .x(function(d) { return x(d.name); })
-//     .y(function(d) { return y1(d.price_per_room); });
-
-// create an SVG element (appended to body)
-// set size
-// add a "g" element (think "group")
-// annoying d3 gotcha - the 'svg' variable here is a 'g' element
-// the final line sets the transform on <g>, not on <svg>
 var svg = d3.select("body").append("svg")
     .attr("width", width + margin.left + margin.right)
     .attr("height", height + margin.top + margin.bottom)
@@ -397,61 +406,28 @@ g.append("g")
     .style("text-anchor", "end")
     .text("Price Per room");
 
-var bars = g.selectAll(".bar");
-
-bars
-    .enter().append("rect")
-      .attr("class", "bar");
-
-// d3.tsv is a wrapper around XMLHTTPRequest, returns array of arrays (?) for a TSV file
-// type function transforms strings to numbers, dates, etc.
-// d3.tsv("data.tsv", type, function(error, data) {
-  // replay(data);
-// 
 
 
-function type(d) {
-  // + coerces to a Number from a String (or anything)
-  d.frequency = +d.frequency;
-  return d;
-}
-// var slicesData = [];
 function replay(data) {
+
 	var options = ['crime_count','price_per_room'];
 
-data.forEach(function(d) {
-    d.valores = options.map(function(name) { return {name1: name, value: +d[name]}; });
-});
-// console.log(data);
-  // slicesData.push(data);
-  // console.log(slicesData);
-  // var slices=[]
-  // for (var i = 0; i < data.length; i++) {
-  //   slices.push(data.slice(0, i+1));
-  // }
-  // slices.forEach(function(slice, index){
-  //   setTimeout(function(){
-    	// console.log(slice);
+	data.forEach(function(d) {
+	    d.valores = options.map(function(name) { return {name1: name, value: +d[name]}; });
+	});
+
       draw(data);
-  //   }, index * 300);
-  // });
 }
 
 function draw(data) {
 	// console.log(data);
-	// data.map(function(d){if (d.crime_count != undefined) {console.log(d.crime_count);}});
-  // measure the domain (for x, unique letters) (for y [0,maxFrequency])
-  // now the scales are finished and usable
   x.domain(data.map(function(d) { return d.name; }));
   x1.domain(['crime_count','price_per_room']).rangeRound([0,x.bandwidth()]);
   y.domain([0, d3.max(data, function(d) { return d3.max(d.valores, function(d) { return d.value; }); })]);
   // y.domain([0, d3.max(data, function(d) { return d.crime_count; })]);
   // y1.domain([0, d3.max(data, function(d) { return d.price_per_room; })]);
 
-  // // another g element, this time to move the origin to the bottom of the svg element
-  // // someSelection.call(thing) is roughly equivalent to thing(someSelection[i])
-  // //   for everything in the selection\
-  // // the end result is g populated with text and lines!
+ 
   svg.select('.x.axis').transition().duration(300).call(xAxis);
 
   // // same for yAxis but with more transform and a title
@@ -459,63 +435,61 @@ function draw(data) {
 
   svg.select(".y.axis.right").transition().duration(300).call(yAxisRight)
 
-  // // THIS IS THE ACTUAL WORK!
-   // (data) is an array/iterable thing, second argument is an ID generator function
-  // bars.exit()
-  //   .transition()
-  //     .duration(300)
-  //   .attr("y", y(0))
-  //   .attr("height", height - y(0))
-  //   .style('fill-opacity', 1e-6)
-  //   .remove();
-  var bars = g.selectAll(".bar").data(data).enter().append("g")
-    .attr("class", "bar")
-    .attr("transform", function(d) { console.log(d.name);return "translate(" + x(d.name) + ",0)"; }); //data(data, function(d) { return d.valores; });
-  // bars
-  //   .enter().append("rect")
-  //     .attr("class", "bar");
+ 
 
+  var bars = g.selectAll(".bar");
+ 
+  bars.data(data).enter().append("g")
+    .attr("class", "bar").transition()
+  .duration(300)
+  .attr("transform", function(d) { console.log(d.name,x(d.name));return "translate(" + x(d.name) + ",0)"; });
 
-   // bars.exit().transition().duration(500)
-   //  .selectAll("rect")
-   //  .attr("height", 0)
-   //  .remove();
+bars.transition()
+  .duration(300)
+  .attr("transform", function(d) { console.log(d.name,x(d.name));return "translate(" + x(d.name) + ",0)"; });
 
-    //exit 
-    bars.exit()
+   bars.exit()
     .transition()
     .duration(300)
-        .attr("width", 0)
-        .remove();
-    bars.selectAll("rect").exit()
-    .transition()
-    .duration(300)
-        .attr("width", 0)
-        .remove();
+    .style('fill-opacity', 1e-6)
+    .remove();
 
-    bars.selectAll("rect")
-    .data(function(d) { return d.valores; })
+
+    var bar_rects=bars.selectAll("rect");
+
+    bar_rects.data(function(d) { return d.valores; })
     .enter().append("rect")
-        .attr("stroke-width", 4)
+    .attr("class","rect");
+
+    bar_rects.attr("stroke-width", 4)
     .transition()
     .duration(300)
-    	.attr("x", function(d) {console.log(x1(d.name1));return x1(d.name1); })
+    	.attr("x", function(d) {console.log(x1.bandwidth());return x1(d.name1); })
         .attr("width", x1.bandwidth())
         .attr("y", function(d) {return y(d.value); })
         .attr("value", function(d){return d.name1;})
         .attr("height", function(d) { return height - y(d.value); })
-        .style("fill", function(d) { return color(d.name1); });;
-  
-  // bar.selectAll("rect")
-  //   .data(function(d) { return d.valores; })
-  //   .enter().append("rect")
-  //   .attr("width", x1.rangeBand())
-  //   .attr("x", function(d) { return x1(d.name); })
-  //   .attr("y", function(d) { return y(d.value); })
-  //   .attr("value", function(d){return d.name;})
-  //   .attr("height", function(d) { return height - y(d.value); })
-  //   .style("fill", function(d) { return color(d.name); });
+        .style("fill", function(d) { return color(d.name1); });
 
+
+    bar_rects
+    .attr("stroke-width", 4)
+    .transition()
+    .duration(300)
+    	.attr("x", function(d) {console.log(x1.bandwidth());return x1(d.name1); })
+        .attr("width", x1.bandwidth())
+        .attr("y", function(d) {return y(d.value); })
+        .attr("value", function(d){return d.name1;})
+        .attr("height", function(d) { return height - y(d.value); })
+        .style("fill", function(d) { return color(d.name1); });
+
+    	bar_rects.exit()
+    .transition()
+    .duration(300)
+    .style('fill-opacity', 1e-6)
+    .remove();
+   
+  
 }
 
 
