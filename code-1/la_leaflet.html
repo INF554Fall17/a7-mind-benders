@@ -37,15 +37,39 @@
 	    margin-right: 8px;
 	    opacity: 0.7;
 	}
+	.bar {
+	  fill: steelblue;
+	}
+
+	.bar:hover {
+	  fill: brown;
+	}
+
+	.axis {
+	  font: 10px sans-serif;
+	}
+
+	.axis path,
+	.axis line {
+	  fill: none;
+	  stroke: #000;
+	  shape-rendering: crispEdges;
+	}
+
+	.x.axis path {
+	  display: none;
+	}
    </style>
 </head>
 <body>
 	<div id="mapid"></div>
+	<!-- <svg id="bar" width="960" height="500"></svg> -->
 	<script type="text/javascript">
 
 	//Map
-   	
-   	d3.json("la_county_neighborhoods_updated_price.geojson",function(data){
+   	var barData=[];
+   	d3.json("la_county_neighborhoods_updated_crime_type.geojson",function(data){
+   		// console.log(data);
 
 	// L.geoJson function is used to parse geojson file and load on to map
 		var mymap = L.map('mapid').setView([34.0522, -118.2437], 10);
@@ -106,7 +130,7 @@
 
 		function style(feature) {
     return {
-        fillColor: getColor(feature.properties.crime_count),
+        fillColor: getColor(feature.properties.norm_crime_count),
         weight: 2,
         opacity: 1,
         color: 'white',
@@ -134,64 +158,104 @@
 		        layer.bringToFront();
 		    }
 
-		    var popup = L.popup();
+		    // var popup = L.popup();
 
-		    popup
-		        .setLatLng(e.latlng)
-		        .setContent('<h4>Los Angeles Crime Count</h4>' + 
-		        '<b>' + layer.feature.properties.name + '</b><br />' + layer.feature.properties.crime_count + ' crime count<br />'+ layer.feature.properties.price_per_room+' avg price per room')
-		        .openOn(mymap);
+		    // popup
+		    //     .setLatLng(e.latlng)
+		    //     .setContent('<h4>Los Angeles Crime Count</h4>' + 
+		    //     '<b>' + layer.feature.properties.name + '</b><br />' + layer.feature.properties.crime_count + ' crime count<br />'+ layer.feature.properties.price_per_room+' avg price per room')
+		    //     .openOn(mymap);
 
-		    // var div = L.DomUtil.create('div', 'crime_bar')
-		    // // '<div class="crime_bar"><svg/></div>';
-		    // // 
-		    // // 
-		    // div.innerHTML="<svg/>"
-		    
-
-		    // var svg = d3.select("svg")
-	     //        .attr("width", 200)
-	     //        .attr("height", 200);
-	     //    // console.log(svg)
-	     //    svg.append("circle")
-	     //    .style("stroke", "gray")
-	     //    .style("fill", "white")
-	     //    .attr("r", 100)
-	     //    .attr("cx", 100)
-	     //    .attr("cy", 100)
-	     //    .on("mouseover", function () {
-
-	     //        d3.select(this).style("fill", "aliceblue");
-	     //    })
-	     //    .on("mouseout", function () {
-	     //        d3.select(this).style("fill", "white");
-	     //    });
-	     //    popup.bindPopup(div);
-		    // popup.openPopup();
-	        // popup.bindPopup(div).setContent(div);
+		   
 		    info.update(layer.feature.properties);
 		}
 
 		function resetHighlight(e) {
 		    geojson.resetStyle(e.target);
+		    // var layers=e.target()
+		    // layer.unbindPopup();
 		    info.update();
 		}
 
-		// function zoomToFeature(e) {
-		//     mymap.fitBounds(e.target.getBounds());
-		// }
+		function zoomToFeature(e) {
+			var layer = e.target;
+			// update_bar(layer.feature.properties)
+			// replay(layer.feature.properties);
+			if (layer.feature.properties.crime_count>0){
+				barData.push(layer.feature.properties);
+				replay(barData);
+			}
+			
+		}
 
-		function onEachFeature(feature, layer) {
-		    layer.on({
-		        mouseover: highlightFeature,
-		        mouseout: resetHighlight
-		        // click: zoomToFeature
-		    });
+		var onEachFeature_LMA = function onEachFeature(feature, layer) {
+				layer.on({
+				mouseover: highlightFeature,
+				mouseout: resetHighlight,
+				click: zoomToFeature
+			});
+			
+			var div = document.createElement('div');
+			div.className = 'popupGraph';
+			div.innerHTML = '<svg/>';
+
+			var popup = L.popup().setContent(div);
+			layer.bindPopup(popup);
+            
+            var values = feature.properties;
+            var data = [
+                {name:"Educ",value:values["Educ"]},
+                {name:"Earnings",value:values["Earnings"]},
+                {name:"Ind",value:values["Ind"]},
+                {name:"Housing",value:values["Housing"]},
+                {name:"AccToSer",value:values["AccToSer"]},
+                {name:"EcPerfInd",value:values["EcPerfInd"]}
+            ];
+            var margin = {top: 20, right: 30, bottom: 40, left: 40},
+                width = 250 - margin.left - margin.right,
+                height = 200 - margin.top - margin.bottom,
+                barHeight = height / data.length;
+      
+
+            var x = d3.scaleLinear()
+                .domain([0, d3.max(data, function(d){return d.value;})])
+                .range([0, width]);
+
+            var xAxis = d3.axisBottom().scale(x);
+
+			var svg = d3.select(div).select("svg")
+			    .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+              .append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+                .classed("chart", true);
+            
+            svg.append("g")
+                .attr("class", "x axis")
+                .attr("transform", "translate(0," + height + ")")
+                .call(xAxis);
+           
+            var bar = svg.selectAll("g.bar")
+                .data(data)
+                .enter()
+              .append("g")
+                .attr("transform", function(d, i) { return "translate(0," + i * barHeight + ")"; });
+            
+            bar.append("rect")
+                .attr("width", function(d){return x(d.value);})
+                .attr("height", barHeight - 1);
+            
+            bar.append("text")
+                .attr("x", function(d) { return x(d.value) - 3; })
+                .attr("y", barHeight / 2)
+                .attr("dy", ".35em")
+                .text(function(d) { return d.name; });
+     
 		}
 
 		geojson = L.geoJson(data, {
 		    style: style,
-		    onEachFeature: onEachFeature
+		    onEachFeature: onEachFeature_LMA
 		}).addTo(mymap);
 
 		var info = L.control();
@@ -205,7 +269,7 @@
 		// method that we will use to update the control based on feature properties passed
 		info.update = function (props) {
 		    this._div.innerHTML = '<h4>Los Angeles Crime Count</h4>' +  (props ?
-		        '<b>' + props.name + '</b><br />' + props.crime_count + ' crime count<br />'+ props.price_per_room+' avg price per room'
+		        '<b>' + props.name + '</b><br />' + props.norm_crime_count + ' crime count<br />'+ props.price_per_room+' avg price per room'
 		        : 'Hover over a state');
 		};
 
@@ -237,21 +301,225 @@
 
 		mymap.getPane('labels').style.pointerEvents = 'none';
 
-		// var positron = L.tileLayer('http://{s}.basemaps.cartocdn.com/base-antique/{z}/{x}/{y}.png', {
-  //       	attribution: '©OpenStreetMap, ©CartoDB'
-		// }).addTo(mymap);
-
 		var positronLabels = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png', {
 		        attribution: '©OpenStreetMap, ©CartoDB',
 		        pane: 'labels'
 		}).addTo(mymap);
 
-		// var geojson = L.geoJson(data, geoJsonOptions).addTo(mymap);
+		mymap.doubleClickZoom.disable(); 
 
+		// console.log(data);
+		properties=data['features'].map(function(d) { return d.properties; })
+		// properties.slice(0,10).map(function(d){ console.log(d)});
+		// replay(properties.slice(0,1));
+		// console.log(properties.slice(0,1));
+		// replay(properties.slice(0,5));
 	});
-   	
 
-	
+// Mike Bostock "margin conventions"
+var margin = {top: 20, right: 20, bottom: 30, left: 40},
+    width = 960 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom;
+
+// D3 scales = just math
+// x is a function that transforms from "domain" (data) into "range" (usual pixels)
+// domain gets set after the data loads
+var x = d3.scaleBand()
+    .rangeRound([0, width], .1);
+
+var x1 = d3.scaleBand();
+
+var y = d3.scaleLinear()
+    .range([height, 0]);
+
+var y1 = d3.scaleLinear().range([height, 0]);
+
+// D3 Axis - renders a d3 scale in SVG
+var xAxis = d3.axisBottom()
+    .scale(x);
+    // .orient("bottom");
+
+var yAxis = d3.axisLeft()
+    .scale(y);
+    // .orient("left")
+    // .ticks(10, "%");
+
+var yAxisRight = d3.axisRight().scale(y1);
+
+
+var color = d3.scaleOrdinal(d3.schemeCategory10);
+    // .orient("right").ticks(5); 
+// var yAxisRight = d3.axisRight()
+//     .scale(y)
+
+// define the 1st line
+// var valueline = d3.line()
+//     .x(function(d) { return x(d.name); })
+//     .y(function(d) { return y(d.crime_count); });
+
+// // define the 2nd line
+// var valueline2 = d3.line()
+//     .x(function(d) { return x(d.name); })
+//     .y(function(d) { return y1(d.price_per_room); });
+
+// create an SVG element (appended to body)
+// set size
+// add a "g" element (think "group")
+// annoying d3 gotcha - the 'svg' variable here is a 'g' element
+// the final line sets the transform on <g>, not on <svg>
+var svg = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+var g = svg.append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+g.append("g")
+    .attr("class", "x axis")
+    .attr("transform", "translate(0," + height + ")")
+
+g.append("g")
+    .attr("class", "y axis")
+  .append("text") // just for the title (ticks are automatic)
+    .attr("transform", "rotate(-90)") // rotate the text!
+    .attr("y", 6)
+    .attr("dy", ".71em")
+    .style("text-anchor", "end")
+    .text("Frequency");
+
+g.append("g")
+    .attr("class", "y axis right")
+    .attr("transform", "translate(" + width + ",0)")
+    // .call(yAxisRight)
+  .append("text") // just for the title (ticks are automatic)
+    .attr("transform", "rotate(-90)") // rotate the text!
+    .attr("y", -16)
+    .attr("dy", ".71em")
+    .style("text-anchor", "end")
+    .text("Price Per room");
+
+var bars = g.selectAll(".bar");
+
+bars
+    .enter().append("rect")
+      .attr("class", "bar");
+
+// d3.tsv is a wrapper around XMLHTTPRequest, returns array of arrays (?) for a TSV file
+// type function transforms strings to numbers, dates, etc.
+// d3.tsv("data.tsv", type, function(error, data) {
+  // replay(data);
+// 
+
+
+function type(d) {
+  // + coerces to a Number from a String (or anything)
+  d.frequency = +d.frequency;
+  return d;
+}
+// var slicesData = [];
+function replay(data) {
+	var options = ['crime_count','price_per_room'];
+
+data.forEach(function(d) {
+    d.valores = options.map(function(name) { return {name1: name, value: +d[name]}; });
+});
+// console.log(data);
+  // slicesData.push(data);
+  // console.log(slicesData);
+  // var slices=[]
+  // for (var i = 0; i < data.length; i++) {
+  //   slices.push(data.slice(0, i+1));
+  // }
+  // slices.forEach(function(slice, index){
+  //   setTimeout(function(){
+    	// console.log(slice);
+      draw(data);
+  //   }, index * 300);
+  // });
+}
+
+function draw(data) {
+	// console.log(data);
+	// data.map(function(d){if (d.crime_count != undefined) {console.log(d.crime_count);}});
+  // measure the domain (for x, unique letters) (for y [0,maxFrequency])
+  // now the scales are finished and usable
+  x.domain(data.map(function(d) { return d.name; }));
+  x1.domain(['crime_count','price_per_room']).rangeRound([0,x.bandwidth()]);
+  y.domain([0, d3.max(data, function(d) { return d3.max(d.valores, function(d) { return d.value; }); })]);
+  // y.domain([0, d3.max(data, function(d) { return d.crime_count; })]);
+  // y1.domain([0, d3.max(data, function(d) { return d.price_per_room; })]);
+
+  // // another g element, this time to move the origin to the bottom of the svg element
+  // // someSelection.call(thing) is roughly equivalent to thing(someSelection[i])
+  // //   for everything in the selection\
+  // // the end result is g populated with text and lines!
+  svg.select('.x.axis').transition().duration(300).call(xAxis);
+
+  // // same for yAxis but with more transform and a title
+  svg.select(".y.axis").transition().duration(300).call(yAxis)
+
+  svg.select(".y.axis.right").transition().duration(300).call(yAxisRight)
+
+  // // THIS IS THE ACTUAL WORK!
+   // (data) is an array/iterable thing, second argument is an ID generator function
+  // bars.exit()
+  //   .transition()
+  //     .duration(300)
+  //   .attr("y", y(0))
+  //   .attr("height", height - y(0))
+  //   .style('fill-opacity', 1e-6)
+  //   .remove();
+  var bars = g.selectAll(".bar").data(data).enter().append("g")
+    .attr("class", "bar")
+    .attr("transform", function(d) { console.log(d.name);return "translate(" + x(d.name) + ",0)"; }); //data(data, function(d) { return d.valores; });
+  // bars
+  //   .enter().append("rect")
+  //     .attr("class", "bar");
+
+
+   // bars.exit().transition().duration(500)
+   //  .selectAll("rect")
+   //  .attr("height", 0)
+   //  .remove();
+
+    //exit 
+    bars.exit()
+    .transition()
+    .duration(300)
+        .attr("width", 0)
+        .remove();
+    bars.selectAll("rect").exit()
+    .transition()
+    .duration(300)
+        .attr("width", 0)
+        .remove();
+
+    bars.selectAll("rect")
+    .data(function(d) { return d.valores; })
+    .enter().append("rect")
+        .attr("stroke-width", 4)
+    .transition()
+    .duration(300)
+    	.attr("x", function(d) {console.log(x1(d.name1));return x1(d.name1); })
+        .attr("width", x1.bandwidth())
+        .attr("y", function(d) {return y(d.value); })
+        .attr("value", function(d){return d.name1;})
+        .attr("height", function(d) { return height - y(d.value); })
+        .style("fill", function(d) { return color(d.name1); });;
+  
+  // bar.selectAll("rect")
+  //   .data(function(d) { return d.valores; })
+  //   .enter().append("rect")
+  //   .attr("width", x1.rangeBand())
+  //   .attr("x", function(d) { return x1(d.name); })
+  //   .attr("y", function(d) { return y(d.value); })
+  //   .attr("value", function(d){return d.name;})
+  //   .attr("height", function(d) { return height - y(d.value); })
+  //   .style("fill", function(d) { return color(d.name); });
+
+}
+
+
+
 
    </script>
 </body>
