@@ -1,0 +1,560 @@
+<html>
+
+<head>
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.2.0/dist/leaflet.css" integrity="sha512-M2wvCLH6DSRazYeZRIm1JnYyh22purTM+FDB5CsyxtQJYeKq83arPe5wgbNmcFXGqiSH2XR8dT/fJISVA1r/zQ=="
+	 crossorigin="" />
+	<script src="https://unpkg.com/leaflet@1.2.0/dist/leaflet.js" integrity="sha512-lInM/apFSqyy1o6s89K4iQUKg6ppXEgsVxT35HbzUupEVRh2Eu9Wdl4tHj7dZO0s1uvplcYGmt3498TtHq+log=="
+	 crossorigin=""></script>
+
+	<script src="http://d3js.org/d3.v4.min.js"></script>
+	<!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script> -->
+
+	<style type="text/css">
+		#mapid {
+			height: 600px;
+		}
+
+		.info {
+			padding: 6px 8px;
+			font: 14px/16px Arial, Helvetica, sans-serif;
+			background: white;
+			background: rgba(255, 255, 255, 0.8);
+			box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+			border-radius: 5px;
+		}
+
+		.info h4 {
+			margin: 0 0 5px;
+			color: #777;
+		}
+
+		.legend {
+			line-height: 18px;
+			color: #555;
+		}
+
+		.legend i {
+			width: 18px;
+			height: 18px;
+			float: left;
+			margin-right: 8px;
+			opacity: 0.7;
+		}
+
+		.bar {
+			fill: steelblue;
+		}
+
+		.bar:hover {
+			fill: brown;
+		}
+
+		.axis {
+			font: 10px sans-serif;
+		}
+
+		.axis path,
+		.axis line {
+			fill: none;
+			stroke: #000;
+			shape-rendering: crispEdges;
+		}
+
+		.x.axis path {
+			display: none;
+		}
+	</style>
+</head>
+
+<body>
+	<div id="mapid"></div>
+	<!-- <svg id="bar" width="960" height="500"></svg> -->
+	<h3> Correlation plot </h3>
+	<div id="corr_plot"></div>
+	<script type="text/javascript">
+		//Map
+		var barData = [{ name: "Long Beach", crime_count: 601, price_per_room: 96.787 }, { name: "Downtown", crime_count: 20.82, price_per_room: 124.51 },
+		{ name: "San Pedro", crime_count: 152.56, price_per_room: 92.6 }];
+
+		d3.json("la_county_neighborhoods_updated_roomtype.geojson", function (data) {
+			// console.log(data);
+
+			// L.geoJson function is used to parse geojson file and load on to map
+			var mymap = L.map('mapid').setView([34.0522, -118.2437], 10);
+			// var mymap = L.map('mapid').setView([51.505, -0.09], 13);
+			L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}', {
+				attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://mapbox.com">Mapbox</a>',
+				maxZoom: 18,
+				id: 'mapbox.satellite',
+				accessToken: 'pk.eyJ1Ijoib3N1YmEiLCJhIjoiY2phMGluZnQ0MzVpejJwcG8zM2pqdzY0OCJ9.9TdOSdm8ZeQ599APXk1Jiw'
+			}).addTo(mymap);
+
+			// var marker = L.marker([34.0928, -118.3287]).addTo(mymap);
+
+			// marker.bindPopup("<b>Hello world!</b><br>I am a popup.").openPopup();
+			// circle.bindPopup("I am a circle.");
+			// polygon.bindPopup("I am a polygon.");
+
+			// var popup = L.popup();
+
+			// function onMapClick(e) {
+			// 	console.log(e);
+			//     popup
+			//         .setLatLng(e.latlng)
+			//         .setContent("You clicked the map at " + e.latlng.toString())
+			//         .openOn(mymap);
+			// }
+
+			// mymap.on('click', onMapClick);
+
+			var myStyle = {
+				"weight": 1,
+				"opacity": 0.55
+			};
+
+			L.geoJSON(data, {
+				style: myStyle
+			}).addTo(mymap);
+
+			function getColor(d) {
+				return d > 1000 ? '#800026' :
+					d > 500 ? '#BD0026' :
+						d > 200 ? '#E31A1C' :
+							d > 100 ? '#FC4E2A' :
+								d > 50 ? '#FD8D3C' :
+									d > 20 ? '#FEB24C' :
+										d > 10 ? '#FED976' :
+											'#FFEDA0';
+			}
+
+			// function getColor(d) {
+			//   return d > 1000 ? '#E31A1C' :
+			//   	   d > 800  ? '#FC4E2A' :
+			//   	   d > 500  ? '#FD8D3C' :
+			//   	   d > 200  ? '#FEB24C' :
+			//   	   d > 100  ? '#FED976' :
+			//   	   			  '#FFEDA0';
+			// }
+
+			function style(feature) {
+				return {
+					fillColor: getColor(feature.properties.norm_crime_count),
+					weight: 2,
+					opacity: 1,
+					color: 'white',
+					dashArray: '3',
+					fillOpacity: 0.7
+				};
+
+			}
+
+			L.geoJson(data, { style: style }).addTo(mymap);
+
+			var geojson;
+
+			function highlightFeature(e) {
+				var layer = e.target;
+
+				layer.setStyle({
+					weight: 2,
+					color: '#000',
+					dashArray: '',
+					fillOpacity: 0.7
+				});
+
+				if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+					layer.bringToFront();
+				}
+
+				// var popup = L.popup();
+
+				// popup
+				//     .setLatLng(e.latlng)
+				//     .setContent('<h4>Los Angeles Crime Count</h4>' + 
+				//     '<b>' + layer.feature.properties.name + '</b><br />' + layer.feature.properties.crime_count + ' crime count<br />'+ layer.feature.properties.price_per_room+' avg price per room')
+				//     .openOn(mymap);
+
+
+				info.update(layer.feature.properties);
+			}
+
+			function resetHighlight(e) {
+				geojson.resetStyle(e.target);
+				// var layers=e.target()
+				// layer.unbindPopup();
+				info.update();
+			}
+
+			function zoomToFeature(e) {
+				var layer = e.target;
+				// update_bar(layer.feature.properties)
+				// replay(layer.feature.properties);
+				add = true;
+				if (layer.feature.properties.crime_count > 0) {
+					// for(var i = 0; i<barData.length;i++){
+					// 	if (barData[i].name==layer.feature.properties.name){
+					// 		add=false;
+					// 	}
+					// }
+					// if(add){
+						e_prop = e.target.feature.properties
+					var keys1 = [];
+					if (barData.length > 0) {
+						keys1 = barData.map(function (d) { return (d.name) });
+					}
+					if (keys1.indexOf(e_prop.name) != -1) {
+						barData.splice(keys1.indexOf(e_prop.name), 1);
+					}
+					else{
+						barData.push(layer.feature.properties);
+					}					
+					// console.log(barData);
+					replay(barData);
+					// }
+
+				}
+
+			}
+
+			var onEachFeature_LMA = function onEachFeature(feature, layer) {
+				layer.on({
+					mouseover: highlightFeature,
+					mouseout: resetHighlight,
+					click: zoomToFeature
+				});
+
+				var div = document.createElement('div');
+				div.className = 'popupGraph';
+				div.innerHTML = '<svg/>';
+
+				// var popup = L.popup().setContent(div);
+				// layer.bindPopup(popup);
+
+				var values = feature.properties;
+				var data = [];
+				// console.log(values);
+				var crime_types = ["arson", "burglary", "federal_offenses", "felonies_miscellaneous", "fraud_and_nsf_checks", "grand_theft_auto", "larceny_theft", "narcotics", "rape", "robbery", "sex_offenses"];
+				for (var key in values) {
+					if (crime_types.indexOf(key) > -1) {
+						data.push({ name: key, value: values[key] });
+					}
+				}
+				if (data.length > 0) {
+					var popup = L.popup().setContent(div);
+					layer.bindPopup(popup);
+				}
+				// var data = [
+				//     {name:"arson",value:values["arson"]},
+				//     {name:"burglary",value:values["burglary"]},
+				//     {name:"federal_offenses",value:values["federal_offenses"]},
+				//     {name:"felonies_miscellaneous",value:values["felonies_miscellaneous"]},
+				//     {name:"fraud_and_nsf_checks",value:values["fraud_and_nsf_checks"]},
+				//     {name:"grand_theft_auto",value:values["grand_theft_auto"]},
+				//     {name:"larceny_theft",value:values["larceny_theft"]},
+				//     {name:"narcotics",value:values["narcotics"]},
+				//     {name:"rape",value:values["rape"]},
+				//     {name:"robbery",value:values["robbery"]},
+				//     {name:"sex_offenses",value:values["sex_offenses"]}
+				// ];
+				var margin = { top: 5, right: 80, bottom: 40, left: 40 },
+					width = 300 - margin.left - margin.right,
+					height = 200 - margin.top - margin.bottom,
+					barHeight = height / data.length;
+
+				var x = d3.scaleLinear()
+					.domain([0, d3.max(data, function (d) { return d.value; })])
+					.range([0, width]);
+
+				var xAxis = d3.axisBottom().scale(x);
+
+				var svg = d3.select(div).select("svg")
+					.attr("width", width + margin.left + margin.right)
+					.attr("height", height + margin.top + margin.bottom)
+					.append("g")
+					.attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+					.classed("chart", true);
+
+				svg.append("g")
+					.attr("class", "x axis")
+					.attr("transform", "translate(0," + height + ")")
+					.call(xAxis);
+
+				var bar = svg.selectAll("g.bar")
+					.data(data)
+					.enter()
+					.append("g")
+					.attr("transform", function (d, i) { return "translate(0," + i * barHeight + ")"; });
+
+				bar.append("rect")
+					.attr("width", function (d) { return x(d.value); })
+					.attr("height", barHeight - 1);
+
+				bar.append("text")
+					.attr("x", function (d) { return x(d.value) + 5; })
+					.attr("y", barHeight / 2)
+					.attr("dy", ".35em")
+					.text(function (d) { return d.name; });
+
+			}
+
+			geojson = L.geoJson(data, {
+				style: style,
+				onEachFeature: onEachFeature_LMA
+			}).addTo(mymap);
+
+			var info = L.control();
+
+			info.onAdd = function (map) {
+				this._div = L.DomUtil.create('div', 'info'); // create a div with a class "info"
+				this.update();
+				return this._div;
+			};
+
+			// method that we will use to update the control based on feature properties passed
+			info.update = function (props) {
+				this._div.innerHTML = '<h4>Los Angeles Crime Count</h4>' + (props ?
+					'<b>' + props.name + '</b><br />' + props.norm_crime_count + ' crime count<br />' + props.price_per_room + ' avg price per room'
+					: 'Hover over a state');
+			};
+
+			info.addTo(mymap);
+
+			var legend = L.control({ position: 'bottomright' });
+
+			legend.onAdd = function (map) {
+
+				var div = L.DomUtil.create('div', 'info legend'),
+					grades = [0, 10, 20, 50, 100, 200, 500, 1000],
+					labels = [];
+
+				// loop through our density intervals and generate a label with a colored square for each interval
+				for (var i = 0; i < grades.length; i++) {
+					div.innerHTML +=
+						'<i style="background:' + getColor(grades[i] + 1) + '"></i> ' +
+						grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+');
+				}
+
+				return div;
+			};
+
+			legend.addTo(mymap);
+
+			mymap.createPane('labels');
+
+			mymap.getPane('labels').style.zIndex = 650;
+
+			mymap.getPane('labels').style.pointerEvents = 'none';
+
+			var positronLabels = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png', {
+				attribution: '©OpenStreetMap, ©CartoDB',
+				pane: 'labels'
+			}).addTo(mymap);
+
+			mymap.doubleClickZoom.disable();
+
+			// console.log(data);
+			properties = data['features'].map(function (d) { return d.properties; })
+			// properties.slice(0,10).map(function(d){ console.log(d)});
+			// replay(properties.slice(0,1));
+			// console.log(properties.slice(0,1));
+			// replay(properties.slice(3,4));
+		});
+
+		// Mike Bostock "margin conventions"
+		var margin = { top: 20, right: 20, bottom: 30, left: 40 },
+			width = 960 - margin.left - margin.right,
+			height = 500 - margin.top - margin.bottom;
+
+		// D3 scales = just math
+		// x is a function that transforms from "domain" (data) into "range" (usual pixels)
+		// domain gets set after the data loads
+		var x = d3.scaleBand()
+			.rangeRound([0, width], .1);
+
+		var x1 = d3.scaleBand();
+
+		var y = d3.scaleLinear()
+			.range([height, 0]);
+
+		var y1 = d3.scaleLinear().range([height, 0]);
+
+		// D3 Axis - renders a d3 scale in SVG
+		var xAxis = d3.axisBottom()
+			.scale(x);
+		// .orient("bottom");
+
+		var yAxis = d3.axisLeft()
+			.scale(y);
+		// .orient("left")
+		// .ticks(10, "%");
+
+		//	var yAxisRight = d3.axisRight().scale(y1);
+
+
+		var color = d3.scaleOrdinal(d3.schemeCategory10);
+
+		var svg = d3.select("#corr_plot").append("svg")
+			.attr("width", width + margin.left + margin.right)
+			.attr("height", height + margin.top + margin.bottom)
+		var g = svg.append("g")
+			//.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+			.attr("transform", "translate(" + margin.left + "," + 0 + ")");
+
+		g.append("g")
+			.attr("class", "x axis")
+			.attr("transform", "translate(" + margin.left + "," + height + ")")
+
+		g.append("g")
+			.attr("class", "y axis")
+			.append("text") // just for the title (ticks are automatic)
+			.attr("transform", "rotate(-90)") // rotate the text!
+			.attr("y", 6)
+			.attr("dy", ".71em")
+			.style("text-anchor", "end")
+			.text("Frequency");
+
+		/* 		g.append("g")
+					.attr("class", "y axis right")
+					.attr("transform", "translate(" + width + ",0)")
+					// .call(yAxisRight)
+					.append("text") // just for the title (ticks are automatic)
+					.attr("transform", "rotate(-90)") // rotate the text!
+					.attr("y", -16)
+					.attr("dy", ".71em")
+					.style("text-anchor", "end")
+					.text("Price Per room");*/
+		initial_barchart();
+
+		function initial_barchart() {
+			var data = barData;
+			var options = ['crime_count', 'price_per_room'];
+
+			data.forEach(function (d) {
+				d.valores = options.map(function (name) { return { name1: name, value: +d[name] }; });
+			});
+
+			x.domain(data.map(function (d) { return d.name; }));
+			x1.domain(['crime_count', 'price_per_room']).rangeRound([0, x.bandwidth()]);
+			y.domain([0, d3.max(data, function (d) { return d3.max(d.valores, function (d) { return d.value; }); })]);
+
+			svg.select('.x.axis').transition().duration(300).call(xAxis);
+
+			// // same for yAxis but with more transform and a title
+			svg.select(".y.axis").transition().duration(300).call(yAxis)
+
+			//svg.select(".y.axis.right").transition().duration(300).call(yAxisRight)
+
+			var bars = svg.selectAll(".bar")
+				.data(data);
+
+			bars.enter().append("g")
+				.attr("class", "bar").transition()
+				.duration(300)
+				.attr("transform", function (d) { console.log(d.name, x(d.name)); return "translate(" + x(d.name) + ",0)"; });
+
+			var bar_rects = svg.selectAll(".bar").selectAll("rect").data(function (d) { return d.valores; });
+
+			bar_rects
+				.enter().append("rect")
+				.attr("class", "rect")
+				.attr("stroke-width", 4)
+				.transition()
+				.duration(300)
+				.attr("x", function (d) {
+					console.log(x1.bandwidth());
+					return x1(d.name1);
+				})
+				.attr("width", x1.bandwidth())
+				.attr("y", function (d) { return y(d.value); })
+				.attr("value", function (d) {
+					return d.name1;
+				})
+				.attr("height", function (d) { return height - y(d.value); })
+				.style("fill", function (d) { return color(d.name1); });
+
+
+
+		}
+		function replay(data) {
+
+			var options = ['crime_count', 'price_per_room'];
+
+			data.forEach(function (d) {
+				d.valores = options.map(function (name) { return { name1: name, value: +d[name] }; });
+			});
+
+			draw(data);
+		}
+
+		function draw(data) {
+			// console.log(data);
+			x.domain(data.map(function (d) { return d.name; }));
+			x1.domain(['crime_count', 'price_per_room']).rangeRound([0, x.bandwidth()]);
+			y.domain([0, d3.max(data, function (d) { return d3.max(d.valores, function (d) { return d.value; }); })]);
+			// y.domain([0, d3.max(data, function(d) { return d.crime_count; })]);
+			// y1.domain([0, d3.max(data, function(d) { return d.price_per_room; })]);
+
+
+			svg.select('.x.axis').transition().duration(300).call(xAxis);
+
+			// // same for yAxis but with more transform and a title
+			svg.select(".y.axis").transition().duration(300).call(yAxis)
+
+			//svg.select(".y.axis.right").transition().duration(300).call(yAxisRight)
+
+			var bars = svg.selectAll(".bar")
+				.data(data);
+
+			bars.transition()
+				.duration(300)
+				.attr("transform", function (d) { console.log(d.name, x(d.name)); return "translate(" + x(d.name) + ",0)"; });
+
+			bars.enter().append("g")
+				.attr("class", "bar").transition()
+				.duration(300)
+				.attr("transform", function (d) { console.log(d.name, x(d.name)); return "translate(" + x(d.name) + ",0)"; });
+
+			bars.exit()
+				.transition()
+				.duration(300)
+				.style('fill-opacity', 1e-6)
+				.remove();
+
+
+			var bar_rects = svg.selectAll(".bar").selectAll("rect").data(function (d) { return d.valores; });
+
+			bar_rects.attr("stroke-width", 4)
+				.transition()
+				.duration(300)
+				.attr("x", function (d) { console.log(x1.bandwidth()); return x1(d.name1); })
+				.attr("width", x1.bandwidth())
+				.attr("y", function (d) { return y(d.value); })
+				.attr("value", function (d) { return d.name1; })
+				.attr("height", function (d) { return height - y(d.value); })
+				.style("fill", function (d) { return color(d.name1); });
+
+			bar_rects
+				.enter().append("rect")
+				.attr("class", "rect")
+				.attr("stroke-width", 4)
+				.transition()
+				.duration(300)
+				.attr("x", function (d) { console.log(x1.bandwidth()); return x1(d.name1); })
+				.attr("width", x1.bandwidth())
+				.attr("y", function (d) { return y(d.value); })
+				.attr("value", function (d) { return d.name1; })
+				.attr("height", function (d) { return height - y(d.value); })
+				.style("fill", function (d) { return color(d.name1); });
+
+			bar_rects.exit()
+				.transition()
+				.duration(300)
+				.style('fill-opacity', 1e-6)
+				.remove();
+
+
+		}
+	</script>
+</body>
+
+</html>
