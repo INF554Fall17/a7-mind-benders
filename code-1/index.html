@@ -49,7 +49,8 @@
 			fill: brown;
 		}
 
-		.axis {
+		.axis,
+		.legend-bar {
 			font: 10px sans-serif;
 		}
 
@@ -67,15 +68,23 @@
 </head>
 
 <body>
+	<h3> Choose among the options below to view corresponding chloropleth map </h3>
+	<div>
+		<select id="map_type" style="width: 200px;">
+				<option value="Crime">Crime</option>
+				<option value="Income">Income</option>
+			  </select>
+	</div>
+	<h3> Chloropleth map </h3>
 	<div id="mapid"></div>
 	<!-- <svg id="bar" width="960" height="500"></svg> -->
-	<h3> Correlation plot </h3>
-	<div id="corr_plot"></div>
 	<script type="text/javascript">
 		//Map
+		// var barData=[];
+		//Map
+		var inc_count = [];
 		var barData = [{ name: "Long Beach", crime_count: 601, price_per_room: 96.787 }, { name: "Downtown", crime_count: 20.82, price_per_room: 124.51 },
 		{ name: "San Pedro", crime_count: 152.56, price_per_room: 92.6 }];
-
 		d3.json("la_county_neighborhoods_updated_roomtype.geojson", function (data) {
 			// console.log(data);
 
@@ -116,16 +125,16 @@
 				style: myStyle
 			}).addTo(mymap);
 
-			function getColor(d) {
+			/* 		function getColor(d) {
 				return d > 1000 ? '#800026' :
-					d > 500 ? '#BD0026' :
-						d > 200 ? '#E31A1C' :
-							d > 100 ? '#FC4E2A' :
-								d > 50 ? '#FD8D3C' :
-									d > 20 ? '#FEB24C' :
-										d > 10 ? '#FED976' :
-											'#FFEDA0';
-			}
+					   d > 500  ? '#BD0026' :
+					   d > 200  ? '#E31A1C' :
+					   d > 100  ? '#FC4E2A' :
+					   d > 50   ? '#FD8D3C' :
+					   d > 20   ? '#FEB24C' :
+					   d > 10   ? '#FED976' :
+								  '#FFEDA0';
+					} */
 
 			// function getColor(d) {
 			//   return d > 1000 ? '#E31A1C' :
@@ -136,20 +145,70 @@
 			//   	   			  '#FFEDA0';
 			// }
 
+
+			function getColor(d) {
+				return d === undefined ? '#fee5d9' :
+					d > 150 ? '#a50f15' :
+						d > 100 ? '#de2d26' :
+							d > 50 ? '#fb6a4a' :
+								d > 1 ? '#fcae91' :
+									'#fee5d9';
+			}
+
+			function getColor_income(d) {
+				return d === undefined ? '#f2f0f7' :
+					d > 125 ? '#54278f' :
+						d > 106 ? '#756bb1' :
+							d > 91 ? '#9e9ac8' :
+								d > 10 ? '#cbc9e2' :
+									'#f2f0f7';
+			}
+
+
 			function style(feature) {
-				return {
-					fillColor: getColor(feature.properties.norm_crime_count),
-					weight: 2,
-					opacity: 1,
-					color: 'white',
-					dashArray: '3',
-					fillOpacity: 0.7
-				};
+				var a = document.getElementById("map_type");
+				var val = a.options[a.selectedIndex].value;
+				if (val == "Income") {
+
+					return {
+						//fillColor: getColor(feature.properties.norm_crime_count),
+						fillColor: getColor_income(feature.properties.income),
+						weight: 2,
+						opacity: 1,
+						color: 'grey',
+						dashArray: '3',
+						fillOpacity: 1
+					};
+				}
+				else {
+					return {
+						//fillColor: getColor(feature.properties.norm_crime_count),
+						fillColor: getColor(feature.properties.norm_crime_count),
+						weight: 2,
+						opacity: 1,
+						color: 'grey',
+						dashArray: '3',
+						fillOpacity: 1
+					};
+				}
+
+
+
 
 			}
 
-			L.geoJson(data, { style: style }).addTo(mymap);
+			// Change chloropleth data based on listbox value 
+			document.getElementById("map_type").onchange = function (e) {
+				L.geoJson(data, { style: style }).addTo(mymap);
+				hover_functionality();
+				create_legend();
 
+			}
+
+
+			L.geoJson(data, { style: style }).addTo(mymap);
+			hover_functionality();
+			create_legend();
 			var geojson;
 
 			function highlightFeature(e) {
@@ -197,110 +256,103 @@
 					// 	}
 					// }
 					// if(add){
-						e_prop = e.target.feature.properties
-					var keys1 = [];
-					if (barData.length > 0) {
-						keys1 = barData.map(function (d) { return (d.name) });
-					}
-					if (keys1.indexOf(e_prop.name) != -1) {
-						barData.splice(keys1.indexOf(e_prop.name), 1);
-					}
-					else{
-						barData.push(layer.feature.properties);
-					}					
+					barData.push(layer.feature.properties);
 					// console.log(barData);
 					replay(barData);
 					// }
 
 				}
 
-			}
+			};
 
-			var onEachFeature_LMA = function onEachFeature(feature, layer) {
-				layer.on({
-					mouseover: highlightFeature,
-					mouseout: resetHighlight,
-					click: zoomToFeature
-				});
+			function hover_functionality() {
+				var onEachFeature_LMA = function onEachFeature(feature, layer) {
+					// function onEachFeature(feature, layer) {
+					layer.on({
+						mouseover: highlightFeature,
+						mouseout: resetHighlight,
+						click: zoomToFeature
+					});
 
-				var div = document.createElement('div');
-				div.className = 'popupGraph';
-				div.innerHTML = '<svg/>';
+					var div = document.createElement('div');
+					div.className = 'popupGraph';
+					div.innerHTML = '<svg/>';
 
-				// var popup = L.popup().setContent(div);
-				// layer.bindPopup(popup);
+					// var popup = L.popup().setContent(div);
+					// layer.bindPopup(popup);
 
-				var values = feature.properties;
-				var data = [];
-				// console.log(values);
-				var crime_types = ["arson", "burglary", "federal_offenses", "felonies_miscellaneous", "fraud_and_nsf_checks", "grand_theft_auto", "larceny_theft", "narcotics", "rape", "robbery", "sex_offenses"];
-				for (var key in values) {
-					if (crime_types.indexOf(key) > -1) {
-						data.push({ name: key, value: values[key] });
+					var values = feature.properties;
+					var data = [];
+					// console.log(values);
+					var crime_types = ["arson", "burglary", "federal_offenses", "felonies_miscellaneous", "fraud_and_nsf_checks", "grand_theft_auto", "larceny_theft", "narcotics", "rape", "robbery", "sex_offenses"];
+					for (var key in values) {
+						if (crime_types.indexOf(key) > -1) {
+							data.push({ name: key, value: values[key] });
+						}
 					}
-				}
-				if (data.length > 0) {
-					var popup = L.popup().setContent(div);
-					layer.bindPopup(popup);
-				}
-				// var data = [
-				//     {name:"arson",value:values["arson"]},
-				//     {name:"burglary",value:values["burglary"]},
-				//     {name:"federal_offenses",value:values["federal_offenses"]},
-				//     {name:"felonies_miscellaneous",value:values["felonies_miscellaneous"]},
-				//     {name:"fraud_and_nsf_checks",value:values["fraud_and_nsf_checks"]},
-				//     {name:"grand_theft_auto",value:values["grand_theft_auto"]},
-				//     {name:"larceny_theft",value:values["larceny_theft"]},
-				//     {name:"narcotics",value:values["narcotics"]},
-				//     {name:"rape",value:values["rape"]},
-				//     {name:"robbery",value:values["robbery"]},
-				//     {name:"sex_offenses",value:values["sex_offenses"]}
-				// ];
-				var margin = { top: 5, right: 80, bottom: 40, left: 40 },
-					width = 300 - margin.left - margin.right,
-					height = 200 - margin.top - margin.bottom,
-					barHeight = height / data.length;
+					if (data.length > 0) {
+						var popup = L.popup().setContent(div);
+						layer.bindPopup(popup);
+					}
+					// var data = [
+					//     {name:"arson",value:values["arson"]},
+					//     {name:"burglary",value:values["burglary"]},
+					//     {name:"federal_offenses",value:values["federal_offenses"]},
+					//     {name:"felonies_miscellaneous",value:values["felonies_miscellaneous"]},
+					//     {name:"fraud_and_nsf_checks",value:values["fraud_and_nsf_checks"]},
+					//     {name:"grand_theft_auto",value:values["grand_theft_auto"]},
+					//     {name:"larceny_theft",value:values["larceny_theft"]},
+					//     {name:"narcotics",value:values["narcotics"]},
+					//     {name:"rape",value:values["rape"]},
+					//     {name:"robbery",value:values["robbery"]},
+					//     {name:"sex_offenses",value:values["sex_offenses"]}
+					// ];
+					var margin = { top: 5, right: 80, bottom: 40, left: 40 },
+						width = 300 - margin.left - margin.right,
+						height = 200 - margin.top - margin.bottom,
+						barHeight = height / data.length;
 
-				var x = d3.scaleLinear()
-					.domain([0, d3.max(data, function (d) { return d.value; })])
-					.range([0, width]);
 
-				var xAxis = d3.axisBottom().scale(x);
+					var x = d3.scaleLinear()
+						.domain([0, d3.max(data, function (d) { return d.value; })])
+						.range([0, width]);
 
-				var svg = d3.select(div).select("svg")
-					.attr("width", width + margin.left + margin.right)
-					.attr("height", height + margin.top + margin.bottom)
-					.append("g")
-					.attr("transform", "translate(" + margin.left + "," + margin.top + ")")
-					.classed("chart", true);
+					var xAxis = d3.axisBottom().scale(x);
 
-				svg.append("g")
-					.attr("class", "x axis")
-					.attr("transform", "translate(0," + height + ")")
-					.call(xAxis);
+					var svg = d3.select(div).select("svg")
+						.attr("width", width + margin.left + margin.right)
+						.attr("height", height + margin.top + margin.bottom)
+						.append("g")
+						.attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+						.classed("chart", true);
 
-				var bar = svg.selectAll("g.bar")
-					.data(data)
-					.enter()
-					.append("g")
-					.attr("transform", function (d, i) { return "translate(0," + i * barHeight + ")"; });
+					svg.append("g")
+						.attr("class", "x axis")
+						.attr("transform", "translate(0," + height + ")")
+						.call(xAxis);
 
-				bar.append("rect")
-					.attr("width", function (d) { return x(d.value); })
-					.attr("height", barHeight - 1);
+					var bar = svg.selectAll("g.bar")
+						.data(data)
+						.enter()
+						.append("g")
+						.attr("transform", function (d, i) { return "translate(0," + i * barHeight + ")"; });
 
-				bar.append("text")
-					.attr("x", function (d) { return x(d.value) + 5; })
-					.attr("y", barHeight / 2)
-					.attr("dy", ".35em")
-					.text(function (d) { return d.name; });
+					bar.append("rect")
+						.attr("width", function (d) { return x(d.value); })
+						.attr("height", barHeight - 1);
 
-			}
+					bar.append("text")
+						.attr("x", function (d) { return x(d.value) + 5; })
+						.attr("y", barHeight / 2)
+						.attr("dy", ".35em")
+						.text(function (d) { return d.name; });
 
-			geojson = L.geoJson(data, {
-				style: style,
-				onEachFeature: onEachFeature_LMA
-			}).addTo(mymap);
+				};
+				geojson = L.geoJson(data, {
+					style: style,
+					onEachFeature: onEachFeature_LMA
+				}).addTo(mymap);
+			};
 
 			var info = L.control();
 
@@ -319,12 +371,17 @@
 
 			info.addTo(mymap);
 
-			var legend = L.control({ position: 'bottomright' });
 
-			legend.onAdd = function (map) {
+			function create_legend() {
+				var a = document.getElementById("map_type");
+				var val = a.options[a.selectedIndex].value;
 
-				var div = L.DomUtil.create('div', 'info legend'),
-					grades = [0, 10, 20, 50, 100, 200, 500, 1000],
+				var crimeLegend = L.control({ position: 'bottomright' });
+				var incomeLegend = L.control({ position: 'bottomright' });
+
+				crimeLegend.onAdd = function (map) {
+					var div = L.DomUtil.create('div', 'info legend');
+					grades = [1, 50, 100, 150],
 					labels = [];
 
 				// loop through our density intervals and generate a label with a colored square for each interval
@@ -335,10 +392,62 @@
 				}
 
 				return div;
+				};
+
+				incomeLegend.onAdd = function (map) {
+					var div = L.DomUtil.create('div', 'info legend');
+					grades = [10,91,106,125],
+					labels = [];
+
+				// loop through our density intervals and generate a label with a colored square for each interval
+				for (var i = 0; i < grades.length; i++) {
+					div.innerHTML +=
+						'<i style="background:' + getColor_income(grades[i] + 1) + '"></i> ' +
+						grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+');
+				}
+
+				return div;
+				};
+
+				// Add this one (only) for now, as the Crime layer is on by default
+				crimeLegend.addTo(mymap);
+
+				//mymap.on('overlayadd', function (eventLayer) {
+					// Switch to the Ctime legend...
+					if (val === 'Crime') {
+						mymap.removeControl(incomeLegend);
+						crimeLegend.addTo(mymap);
+					} else { // Or switch to the Income legend...
+						mymap.removeControl(crimeLegend);
+						incomeLegend.addTo(mymap);
+					}
+				//});
+
+
+
+
+
+
+				/* 				var legend = L.control({ position: 'bottomright' });
+				
+								legend.onAdd = function (map) {
+				
+									var div = L.DomUtil.create('div', 'info legend'),
+										grades = [0, 10, 20, 50, 100, 200, 500, 1000],
+										labels = [];
+				
+									// loop through our density intervals and generate a label with a colored square for each interval
+									for (var i = 0; i < grades.length; i++) {
+										div.innerHTML +=
+											'<i style="background:' + getColor(grades[i] + 1) + '"></i> ' +
+											grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+');
+									}
+				
+									return div;
+								};
+				
+								legend.addTo(mymap); */
 			};
-
-			legend.addTo(mymap);
-
 			mymap.createPane('labels');
 
 			mymap.getPane('labels').style.zIndex = 650;
@@ -353,11 +462,12 @@
 			mymap.doubleClickZoom.disable();
 
 			// console.log(data);
-			properties = data['features'].map(function (d) { return d.properties; })
+			properties = data['features'].map(function (d) { return d.properties; });
 			// properties.slice(0,10).map(function(d){ console.log(d)});
 			// replay(properties.slice(0,1));
 			// console.log(properties.slice(0,1));
-			// replay(properties.slice(3,4));
+			// initial_barchart(properties.slice(3,4));
+
 		});
 
 		// Mike Bostock "margin conventions"
@@ -369,9 +479,9 @@
 		// x is a function that transforms from "domain" (data) into "range" (usual pixels)
 		// domain gets set after the data loads
 		var x = d3.scaleBand()
-			.rangeRound([0, width], .1);
+			.rangeRound([0, width]).paddingInner(0.1);;
 
-		var x1 = d3.scaleBand();
+		var x1 = d3.scaleBand().padding(0.05);
 
 		var y = d3.scaleLinear()
 			.range([height, 0]);
@@ -388,21 +498,21 @@
 		// .orient("left")
 		// .ticks(10, "%");
 
-		//	var yAxisRight = d3.axisRight().scale(y1);
+		var yAxisRight = d3.axisRight().scale(y1);
 
 
-		var color = d3.scaleOrdinal(d3.schemeCategory10);
+		var color = d3.scaleOrdinal()
+			.range(["#6b486b", "#ff8c00"]); //d3.scaleOrdinal(d3.schemeCategory10);  "#7b6888",  "#98abc5", "#8a89a6", "#a05d56", "#d0743c", 
 
-		var svg = d3.select("#corr_plot").append("svg")
+		var svg = d3.select("body").append("svg")
 			.attr("width", width + margin.left + margin.right)
 			.attr("height", height + margin.top + margin.bottom)
 		var g = svg.append("g")
-			//.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-			.attr("transform", "translate(" + margin.left + "," + 0 + ")");
+			.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
 		g.append("g")
 			.attr("class", "x axis")
-			.attr("transform", "translate(" + margin.left + "," + height + ")")
+			.attr("transform", "translate(0," + height + ")")
 
 		g.append("g")
 			.attr("class", "y axis")
@@ -413,19 +523,21 @@
 			.style("text-anchor", "end")
 			.text("Frequency");
 
-		/* 		g.append("g")
-					.attr("class", "y axis right")
-					.attr("transform", "translate(" + width + ",0)")
-					// .call(yAxisRight)
-					.append("text") // just for the title (ticks are automatic)
-					.attr("transform", "rotate(-90)") // rotate the text!
-					.attr("y", -16)
-					.attr("dy", ".71em")
-					.style("text-anchor", "end")
-					.text("Price Per room");*/
+		g.append("g")
+			.attr("class", "y axis right")
+			.attr("transform", "translate(" + width + ",0)")
+			// .call(yAxisRight)
+			.append("text") // just for the title (ticks are automatic)
+			.attr("transform", "rotate(-90)") // rotate the text!
+			.attr("y", -16)
+			.attr("dy", ".71em")
+			.style("text-anchor", "end")
+			.text("Price Per room");
+
 		initial_barchart();
 
 		function initial_barchart() {
+			// console.log(data);
 			var data = barData;
 			var options = ['crime_count', 'price_per_room'];
 
@@ -435,24 +547,25 @@
 
 			x.domain(data.map(function (d) { return d.name; }));
 			x1.domain(['crime_count', 'price_per_room']).rangeRound([0, x.bandwidth()]);
-			y.domain([0, d3.max(data, function (d) { return d3.max(d.valores, function (d) { return d.value; }); })]);
+			y.domain([0, d3.max(data, function (d) { return d3.max(d.valores, function (d) { if (d.name1 == "crime_count") { console.log(d); return d.value; } }); })]);
+			y1.domain([0, d3.max(data, function (d) { return d3.max(d.valores, function (d) { if (d.name1 == "price_per_room") { console.log(d); return d.value; } }); })]);
 
 			svg.select('.x.axis').transition().duration(300).call(xAxis);
 
 			// // same for yAxis but with more transform and a title
-			svg.select(".y.axis").transition().duration(300).call(yAxis)
+			svg.select(".y.axis").transition().duration(300).call(yAxis);
 
-			//svg.select(".y.axis.right").transition().duration(300).call(yAxisRight)
+			svg.select(".y.axis.right").transition().duration(300).call(yAxisRight)
 
-			var bars = svg.selectAll(".bar")
+			var bars = g.selectAll(".bar")
 				.data(data);
 
 			bars.enter().append("g")
 				.attr("class", "bar").transition()
 				.duration(300)
-				.attr("transform", function (d) { console.log(d.name, x(d.name)); return "translate(" + x(d.name) + ",0)"; });
+				.attr("transform", function (d) { return "translate(" + x(d.name) + ",0)"; });
 
-			var bar_rects = svg.selectAll(".bar").selectAll("rect").data(function (d) { return d.valores; });
+			var bar_rects = g.selectAll(".bar").selectAll("rect").data(function (d) { return d.valores; });
 
 			bar_rects
 				.enter().append("rect")
@@ -461,7 +574,6 @@
 				.transition()
 				.duration(300)
 				.attr("x", function (d) {
-					console.log(x1.bandwidth());
 					return x1(d.name1);
 				})
 				.attr("width", x1.bandwidth())
@@ -471,10 +583,31 @@
 				})
 				.attr("height", function (d) { return height - y(d.value); })
 				.style("fill", function (d) { return color(d.name1); });
+			// Legend
+			var legend = svg.selectAll(".legend")
+				.data(['Crime count', 'Price per room'].slice())
+				.enter()
+				.append("g")
+				.attr("class", "legend")
+				.attr("transform", function (d, i) { return "translate(20," + (i + 1) * 20 + ")"; });
 
+			legend.append("rect")
+				.attr("x", width - 48)
+				.attr("width", 18)
+				.attr("height", 18)
+				.style("fill", color);
+
+			legend.append("text")
+				.attr("class", "legend-bar")
+				.attr("x", width - 54)
+				.attr("y", 9)
+				.attr("dy", ".35em")
+				.style("text-anchor", "end")
+				.text(function (d) { return d; });
 
 
 		}
+
 		function replay(data) {
 
 			var options = ['crime_count', 'price_per_room'];
@@ -487,10 +620,10 @@
 		}
 
 		function draw(data) {
-			// console.log(data);
+
 			x.domain(data.map(function (d) { return d.name; }));
 			x1.domain(['crime_count', 'price_per_room']).rangeRound([0, x.bandwidth()]);
-			y.domain([0, d3.max(data, function (d) { return d3.max(d.valores, function (d) { return d.value; }); })]);
+			y.domain([0, d3.max(data, function (d) { return d3.max(d.valores, function (d) { if (d.name1 == "crime_count") { return d.value; } }); })]);
 			// y.domain([0, d3.max(data, function(d) { return d.crime_count; })]);
 			// y1.domain([0, d3.max(data, function(d) { return d.price_per_room; })]);
 
@@ -502,17 +635,17 @@
 
 			//svg.select(".y.axis.right").transition().duration(300).call(yAxisRight)
 
-			var bars = svg.selectAll(".bar")
+			var bars = g.selectAll(".bar")
 				.data(data);
 
 			bars.transition()
 				.duration(300)
-				.attr("transform", function (d) { console.log(d.name, x(d.name)); return "translate(" + x(d.name) + ",0)"; });
+				.attr("transform", function (d) { return "translate(" + x(d.name) + ",0)"; });
 
 			bars.enter().append("g")
 				.attr("class", "bar").transition()
 				.duration(300)
-				.attr("transform", function (d) { console.log(d.name, x(d.name)); return "translate(" + x(d.name) + ",0)"; });
+				.attr("transform", function (d) { return "translate(" + x(d.name) + ",0)"; });
 
 			bars.exit()
 				.transition()
@@ -521,12 +654,12 @@
 				.remove();
 
 
-			var bar_rects = svg.selectAll(".bar").selectAll("rect").data(function (d) { return d.valores; });
+			var bar_rects = g.selectAll(".bar").selectAll("rect").data(function (d) { return d.valores; });
 
 			bar_rects.attr("stroke-width", 4)
 				.transition()
 				.duration(300)
-				.attr("x", function (d) { console.log(x1.bandwidth()); return x1(d.name1); })
+				.attr("x", function (d) { return x1(d.name1); })
 				.attr("width", x1.bandwidth())
 				.attr("y", function (d) { return y(d.value); })
 				.attr("value", function (d) { return d.name1; })
@@ -539,7 +672,7 @@
 				.attr("stroke-width", 4)
 				.transition()
 				.duration(300)
-				.attr("x", function (d) { console.log(x1.bandwidth()); return x1(d.name1); })
+				.attr("x", function (d) { return x1(d.name1); })
 				.attr("width", x1.bandwidth())
 				.attr("y", function (d) { return y(d.value); })
 				.attr("value", function (d) { return d.name1; })
