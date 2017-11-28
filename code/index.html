@@ -6,12 +6,34 @@
 	<script src="https://unpkg.com/leaflet@1.2.0/dist/leaflet.js" integrity="sha512-lInM/apFSqyy1o6s89K4iQUKg6ppXEgsVxT35HbzUupEVRh2Eu9Wdl4tHj7dZO0s1uvplcYGmt3498TtHq+log=="
 	 crossorigin=""></script>
 
+	<!-- Latest compiled and minified CSS -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u"
+	 crossorigin="anonymous">
+
 	<script src="http://d3js.org/d3.v4.min.js"></script>
 	<!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script> -->
 
 	<style type="text/css">
+		.jumbotron {
+			background-image: url("background.jpg") !important;
+		}
+
+		.vertical-center {
+			height: 100%;
+			width: 100%;
+
+			text-align: center;
+			/* align the inline(-block) elements horizontally */
+			font: 0/0 a;
+			/* remove the gap between inline(-block) elements */
+		}
+
+		rect.info {
+			fill: steelblue;
+		}
+
 		#mapid {
-			height: 600px;
+			height: 800px;
 		}
 
 		.info {
@@ -49,7 +71,9 @@
 			fill: brown;
 		}
 
-		.axis {
+		.axis,
+		.legend-bar,
+		.legend_pie {
 			font: 10px sans-serif;
 		}
 
@@ -63,17 +87,108 @@
 		.x.axis path {
 			display: none;
 		}
+
+		#tooltip-pie,
+		#tooltip-bar,
+		#tooltip-chart {
+			position: absolute;
+			width: 150px;
+			height: auto;
+			padding: 10px;
+			z-index: 10;
+			background-color: white;
+			-webkit-border-radius: 10px;
+			-moz-border-radius: 10px;
+			border-radius: 10px;
+			-webkit-box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+			-mox-box-shadow: 4px 4px 4px 10px rgba(0, 0, 0, 0.4);
+			box-shadow: 4px 4px 10px rbga(0, 0, 0, 0.4) pointer-events: none;
+		}
+
+		#jumbotron-row {
+			margin-top: 350px;
+		}
+
+		#jumbotron-row h1,
+		#jumbotron-row h3,
+		#jumbotron-row h4,
+		#jumbotron-row p a {
+			color: white;
+		}
+
+		.padding-0 {
+			padding-right: 0;
+			padding-left: 0;
+		}
+		/*#tooltip-pie.hidden, #tooltip-chart.hidden, #tooltip-bar.hidden {
+	      display: none;
+	    }*/
 	</style>
 </head>
 
 <body>
-	<div id="mapid"></div>
-	<!-- <svg id="bar" width="960" height="500"></svg> -->
+
+	<div class="container">
+		<div id="tooltip-pie"></div>
+		<div id="tooltip-chart"></div>
+		<div id="tooltip-bar"></div>
+		<div class="jumbotron theme-showcase vertical-center" id="jumbotron" role="main">
+			<div id="jumbotron-row">
+				<h1>Factors impacting Airbnb Rentals</h1>
+				<h3>Team - Mind Benders</h3>
+				<h4>Tejal Patted</h4>
+				<h4>Onzali Suba</h4>
+				<h4>Nitya Pydipati</h4>
+				<p><a class="btn btn-lg btn-success" href="#map_type_choose" role="button">Explore Los Angeles</a></p>
+			</div>
+		</div>
+
+		<h3 id="map_type_choose"> Choose among the options below to view corresponding chloropleth map </h3>
+		<div>
+			<select id="map_type" style="width: 200px;">
+			<option value="Crime">Crime</option>
+			<option value="Income">Income</option>
+		</select>
+		</div>
+		<br/>
+		<div class="row">
+			<div class="col-sm-9 padding-0" " >
+	    <!--   <div style="background-color: white; height: 50px; "><center><h3 style="color: blue; "> Chloropleth map </h3></center></div> -->
+	      <div id="mapid " style="margin-left: 15px; "></div>
+	    </div>
+	    <div class="col-sm-3 padding-0 "">
+				<div>
+					<center>
+						<h3 id="info-city">Long Beach</h3>
+					</center>
+					<center>
+						<h5>Crime rate by type</h5>
+					</center>
+					<svg class='chart'></svg>
+					<center>
+						<h5>Room Type</h5>
+					</center>
+					<center>
+						<svg id="pie"></svg>
+					</center>
+				</div>
+			</div>
+		</div>
+	</div>
 	<script type="text/javascript">
-		//Map
-		var barData = [];
-		d3.json("la_county_neighborhoods_updated_crime_type.geojson", function (data) {
-			// console.log(data);
+		d3.select("#tooltip-chart").style("visibility", "hidden");
+		d3.select("#tooltip-pie").style("visibility", "hidden");
+		d3.select("#tooltip-bar").style("visibility", "hidden");
+
+		var infoData = { "set": "/1.0/boundary-set/la-county-neighborhoods-current/", "zipcodes": [90740, 90804, 90805, 90806, 90807, 90801, 90802, 90803, 90840, 90842, 90832, 90808, 90809, 90846, 90847, 90844, 90822, 90853, 90833, 90848, 90813, 90834, 90810, 90831, 90815, 90814, 90835, 90899], "entire_home_apt": 581.0, "norm_crime_count": 13.98, "crime_count": 601.0, "narcotics": 114.0, "fraud_and_nsf_checks": 19.0, "federal_offenses": 2.0, "income": 105.57, "price_per_room": 96.87, "metadata": { "sqmi": 52.1003673205, "type": "standalone-city", "name": "Long Beach", "slug": "long-beach" }, "private_room": 425.0, "burglary": 73.0, "slug": "long-beach-la-county-neighborhood-current", "larceny_theft": 196.0, "felonies_miscellaneous": 10.0, "kind": "L.A. County Neighborhood (Current)", "shared_room": 74.0, "name": "Long Beach", "arson": 3.0, "sex_offenses": 15.0, "robbery": 53.0, "external_id": "long-beach", "grand_theft_auto": 109.0, "resource_uri": "/1.0/boundary/long-beach-la-county-neighborhood-current/" };
+		var inc_count = [];
+		var barData = [{ name: "Long Beach", crime_count: 601, price_per_room: 96.787, income: 105.57 }, { name: "Downtown", crime_count: 20.82, price_per_room: 124.51, income: 68.73 },
+		{ name: "San Pedro", crime_count: 152.56, price_per_room: 92.6, income: 86.67 }];
+
+		var pie_data = [];
+		// console.log(pie_data);
+
+		d3.json("la_county_neighborhoods_updated_roomtype.geojson", function (data) {
 
 			// L.geoJson function is used to parse geojson file and load on to map
 			var mymap = L.map('mapid').setView([34.0522, -118.2437], 10);
@@ -85,24 +200,6 @@
 				accessToken: 'pk.eyJ1Ijoib3N1YmEiLCJhIjoiY2phMGluZnQ0MzVpejJwcG8zM2pqdzY0OCJ9.9TdOSdm8ZeQ599APXk1Jiw'
 			}).addTo(mymap);
 
-			// var marker = L.marker([34.0928, -118.3287]).addTo(mymap);
-
-			// marker.bindPopup("<b>Hello world!</b><br>I am a popup.").openPopup();
-			// circle.bindPopup("I am a circle.");
-			// polygon.bindPopup("I am a polygon.");
-
-			// var popup = L.popup();
-
-			// function onMapClick(e) {
-			// 	console.log(e);
-			//     popup
-			//         .setLatLng(e.latlng)
-			//         .setContent("You clicked the map at " + e.latlng.toString())
-			//         .openOn(mymap);
-			// }
-
-			// mymap.on('click', onMapClick);
-
 			var myStyle = {
 				"weight": 1,
 				"opacity": 0.55
@@ -112,40 +209,69 @@
 				style: myStyle
 			}).addTo(mymap);
 
+
 			function getColor(d) {
-				return d > 1000 ? '#800026' :
-					d > 500 ? '#BD0026' :
-						d > 200 ? '#E31A1C' :
-							d > 100 ? '#FC4E2A' :
-								d > 50 ? '#FD8D3C' :
-									d > 20 ? '#FEB24C' :
-										d > 10 ? '#FED976' :
-											'#FFEDA0';
+				return d === undefined ? '#fee5d9' :
+					d > 150 ? '#a50f15' :
+						d > 100 ? '#de2d26' :
+							d > 50 ? '#fb6a4a' :
+								d > 1 ? '#fcae91' :
+									'#fee5d9';
 			}
 
-			// function getColor(d) {
-			//   return d > 1000 ? '#E31A1C' :
-			//   	   d > 800  ? '#FC4E2A' :
-			//   	   d > 500  ? '#FD8D3C' :
-			//   	   d > 200  ? '#FEB24C' :
-			//   	   d > 100  ? '#FED976' :
-			//   	   			  '#FFEDA0';
-			// }
+			function getColor_income(d) {
+				return d === undefined ? '#f2f0f7' :
+					d > 125 ? '#54278f' :
+						d > 106 ? '#756bb1' :
+							d > 91 ? '#9e9ac8' :
+								d > 10 ? '#cbc9e2' :
+									'#f2f0f7';
+			}
+
 
 			function style(feature) {
-				return {
-					fillColor: getColor(feature.properties.norm_crime_count),
-					weight: 2,
-					opacity: 1,
-					color: 'white',
-					dashArray: '3',
-					fillOpacity: 0.7
-				};
+				var a = document.getElementById("map_type");
+				var val = a.options[a.selectedIndex].value;
+				if (val == "Income") {
+
+					return {
+						//fillColor: getColor(feature.properties.norm_crime_count),
+						fillColor: getColor_income(feature.properties.income),
+						weight: 2,
+						opacity: 1,
+						color: 'grey',
+						dashArray: '3',
+						fillOpacity: 1
+					};
+				}
+				else {
+					return {
+						//fillColor: getColor(feature.properties.norm_crime_count),
+						fillColor: getColor(feature.properties.norm_crime_count),
+						weight: 2,
+						opacity: 1,
+						color: 'grey',
+						dashArray: '3',
+						fillOpacity: 1
+					};
+				}
+
+
+
+
+			}
+
+			// Change chloropleth data based on listbox value 
+			document.getElementById("map_type").onchange = function (e) {
+				L.geoJson(data, { style: style }).addTo(mymap);
+				hover_functionality();
+				create_legend();
 
 			}
 
 			L.geoJson(data, { style: style }).addTo(mymap);
-
+			hover_functionality();
+			create_legend();
 			var geojson;
 
 			function highlightFeature(e) {
@@ -158,58 +284,72 @@
 					fillOpacity: 0.7
 				});
 
+				var popup = L.popup();
+
+				popup
+					.setLatLng(e.latlng)
+					.setContent('<h4>Los Angeles Crime Count</h4>' +
+					'<b>' + layer.feature.properties.name + '</b><br />' + layer.feature.properties.crime_count + ' crime count<br />' + layer.feature.properties.price_per_room + ' avg price per room')
+					.openOn(mymap);
+
 				if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
 					layer.bringToFront();
 				}
-
-				// var popup = L.popup();
-
-				// popup
-				//     .setLatLng(e.latlng)
-				//     .setContent('<h4>Los Angeles Crime Count</h4>' + 
-				//     '<b>' + layer.feature.properties.name + '</b><br />' + layer.feature.properties.crime_count + ' crime count<br />'+ layer.feature.properties.price_per_room+' avg price per room')
-				//     .openOn(mymap);
-
 
 				info.update(layer.feature.properties);
 			}
 
 			function resetHighlight(e) {
 				geojson.resetStyle(e.target);
-				// var layers=e.target()
-				// layer.unbindPopup();
 				info.update();
 			}
 
 			function zoomToFeature(e) {
 				var layer = e.target;
-				// update_bar(layer.feature.properties)
-				// replay(layer.feature.properties);
+				add = true;
 				if (layer.feature.properties.crime_count > 0) {
-					barData.push(layer.feature.properties);
+
+
+					e_prop = e.target.feature.properties
+					var keys1 = [];
+					if (barData.length > 0) {
+						keys1 = barData.map(function (d) { return (d.name) });
+					}
+					if (keys1.indexOf(e_prop.name) != -1) {
+						barData.splice(keys1.indexOf(e_prop.name), 1);
+					}
+					else {
+						barData.push(layer.feature.properties);
+						if (barData.length > 10) {
+							barData = barData.slice(1, 11);
+						}
+					}
+
+
+
 					replay(barData);
+					draw_info(layer.feature.properties);
+					draw_pie(layer.feature.properties);
+					d3.select("#info-city").text(layer.feature.properties.name);
 				}
 
-			}
+			};
 
-			var onEachFeature_LMA = function onEachFeature(feature, layer) {
-				layer.on({
-					mouseover: highlightFeature,
-					mouseout: resetHighlight,
-					click: zoomToFeature
-				});
+			function hover_functionality() {
+				var onEachFeature_LMA = function onEachFeature(feature, layer) {
 
-				create_popupbar(data, layer, feature);
-				//create_popupbar2(data,layer,feature);
-				create_popuppie(data, layer, feature);
+					layer.on({
+						mouseover: highlightFeature,
+						mouseout: resetHighlight,
+						click: zoomToFeature
+					});
 
-
-			}
-
-			geojson = L.geoJson(data, {
-				style: style,
-				onEachFeature: onEachFeature_LMA
-			}).addTo(mymap);
+				};
+				geojson = L.geoJson(data, {
+					style: style,
+					onEachFeature: onEachFeature_LMA
+				}).addTo(mymap);
+			};
 
 			var info = L.control();
 
@@ -220,34 +360,67 @@
 			};
 
 			// method that we will use to update the control based on feature properties passed
-			info.update = function (props) {
-				this._div.innerHTML = '<h4>Los Angeles Crime Count</h4>' + (props ?
-					'<b>' + props.name + '</b><br />' + props.norm_crime_count + ' crime count<br />' + props.price_per_room + ' avg price per room'
-					: 'Hover over a state');
-			};
+			// info.update = function (props) {
+			// 	this._div.innerHTML = '<h4>Los Angeles Crime Count</h4>' + (props ?
+			// 		'<b>' + props.name + '</b><br />' + props.norm_crime_count + ' crime count<br />' + props.price_per_room + ' avg price per room'
+			// 		: 'Hover over a state or Click to compare');
+			// };
 
 			info.addTo(mymap);
 
-			var legend = L.control({ position: 'bottomright' });
 
-			legend.onAdd = function (map) {
-
-				var div = L.DomUtil.create('div', 'info legend'),
-					grades = [0, 10, 20, 50, 100, 200, 500, 1000],
-					labels = [];
-
-				// loop through our density intervals and generate a label with a colored square for each interval
-				for (var i = 0; i < grades.length; i++) {
-					div.innerHTML +=
-						'<i style="background:' + getColor(grades[i] + 1) + '"></i> ' +
-						grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+');
+			function create_legend() {
+				var a = document.getElementById("map_type");
+				var val = a.options[a.selectedIndex].value;
+				var divs = document.getElementsByTagName('div');
+				for (i = 0; i < divs.length; i++) {
+					if (divs[i].className == "info legend leaflet-control") {
+						divs[i].remove();
+					}
 				}
 
-				return div;
+
+				var legend = L.control({ position: 'bottomright' });
+
+				if (val === 'Crime') {
+					legend.onAdd = function (map) {
+
+						var div = L.DomUtil.create('div', 'info legend'),
+							grades = [1, 50, 100, 150],
+							labels = [];
+
+						// loop through our density intervals and generate a label with a colored square for each interval
+						for (var i = 0; i < grades.length; i++) {
+							div.innerHTML +=
+								'<i style="background:' + getColor(grades[i] + 1) + '"></i> ' +
+								grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+');
+						}
+
+						return div;
+					};
+				}
+				else {
+					legend.onAdd = function (map) {
+						var div = L.DomUtil.create('div', 'info legend');
+						grades = [10, 91, 106, 125],
+							labels = [];
+
+						// loop through our density intervals and generate a label with a colored square for each interval
+						for (var i = 0; i < grades.length; i++) {
+							div.innerHTML +=
+								'<i style="background:' + getColor_income(grades[i] + 1) + '"></i> ' +
+								grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+');
+						}
+
+						return div;
+					};
+				}
+
+				legend.addTo(mymap);
+
+
+
 			};
-
-			legend.addTo(mymap);
-
 			mymap.createPane('labels');
 
 			mymap.getPane('labels').style.zIndex = 650;
@@ -259,28 +432,22 @@
 				pane: 'labels'
 			}).addTo(mymap);
 
-			mymap.doubleClickZoom.disable();
+			mymap.doubleClickZoom.disable(); properties = data['features'].map(function (d) { return d.properties; });
 
-			// console.log(data);
-			properties = data['features'].map(function (d) { return d.properties; })
-			// properties.slice(0,10).map(function(d){ console.log(d)});
-			// replay(properties.slice(0,1));
-			// console.log(properties.slice(0,1));
-			// replay(properties.slice(0,5));
 		});
 
 		// Mike Bostock "margin conventions"
-		var margin = { top: 20, right: 20, bottom: 30, left: 40 },
-			width = 960 - margin.left - margin.right,
+		var margin = { top: 20, right: 180, bottom: 30, left: 80 },
+			width = 1100 - margin.left - margin.right,
 			height = 500 - margin.top - margin.bottom;
 
 		// D3 scales = just math
 		// x is a function that transforms from "domain" (data) into "range" (usual pixels)
 		// domain gets set after the data loads
 		var x = d3.scaleBand()
-			.rangeRound([0, width], .1);
+			.rangeRound([0, width]).paddingInner(0.1);;
 
-		var x1 = d3.scaleBand();
+		var x1 = d3.scaleBand().padding(0.05);
 
 		var y = d3.scaleLinear()
 			.range([height, 0]);
@@ -294,33 +461,14 @@
 
 		var yAxis = d3.axisLeft()
 			.scale(y);
-		// .orient("left")
-		// .ticks(10, "%");
 
 		var yAxisRight = d3.axisRight().scale(y1);
 
 
-		var color = d3.scaleOrdinal(d3.schemeCategory10);
-		// .orient("right").ticks(5); 
-		// var yAxisRight = d3.axisRight()
-		//     .scale(y)
+		var color = d3.scaleOrdinal()
+			.range(["#fb6a4a", "#008000", "#9e9ac8"]);
 
-		// define the 1st line
-		// var valueline = d3.line()
-		//     .x(function(d) { return x(d.name); })
-		//     .y(function(d) { return y(d.crime_count); });
-
-		// // define the 2nd line
-		// var valueline2 = d3.line()
-		//     .x(function(d) { return x(d.name); })
-		//     .y(function(d) { return y1(d.price_per_room); });
-
-		// create an SVG element (appended to body)
-		// set size
-		// add a "g" element (think "group")
-		// annoying d3 gotcha - the 'svg' variable here is a 'g' element
-		// the final line sets the transform on <g>, not on <svg>
-		var svg = d3.select("body").append("svg")
+		var svg = d3.select(".container").append("svg")
 			.attr("width", width + margin.left + margin.right)
 			.attr("height", height + margin.top + margin.bottom)
 		var g = svg.append("g")
@@ -331,259 +479,425 @@
 			.attr("transform", "translate(0," + height + ")")
 
 		g.append("g")
-			.attr("class", "y axis")
-			.append("text") // just for the title (ticks are automatic)
-			.attr("transform", "rotate(-90)") // rotate the text!
-			.attr("y", 6)
-			.attr("dy", ".71em")
-			.style("text-anchor", "end")
-			.text("Frequency");
+			.attr("class", "y axis");
 
 		g.append("g")
 			.attr("class", "y axis right")
-			.attr("transform", "translate(" + width + ",0)")
-			// .call(yAxisRight)
+			.attr("transform", "translate(" + width + ",0)");
+
+		svg
 			.append("text") // just for the title (ticks are automatic)
-			.attr("transform", "rotate(-90)") // rotate the text!
-			.attr("y", -16)
+			.style("font", "sans-serif")
+			.style("font-size", "10px")
+			.attr("transform", "translate(15," + (height + margin.bottom) / 2 + ") rotate(-90)") // rotate the text!
+			// .attr("y", 2)
 			.attr("dy", ".71em")
 			.style("text-anchor", "end")
-			.text("Price Per room");
+			.text("Crime Count/ Income");;
 
-		var bars = g.selectAll(".bar");
+		svg
+			.append("text") // just for the title (ticks are automatic)
+			.style("font", "sans-serif")
+			.style("font-size", "10px")
+			.attr("transform", "translate(" + (width + 150) + "," + (height + margin.bottom) / 2 + ") rotate(90)") // rotate the text!
+			// .attr("y", 2)
+			.attr("dy", ".71em")
+			.style("text-anchor", "end")
+			.text("Price per room");;
 
-		bars
-			.enter().append("rect")
-			.attr("class", "bar");
+		initial_barchart();
 
-		// d3.tsv is a wrapper around XMLHTTPRequest, returns array of arrays (?) for a TSV file
-		// type function transforms strings to numbers, dates, etc.
-		// d3.tsv("data.tsv", type, function(error, data) {
-		// replay(data);
-		// 
-
-
-		function type(d) {
-			// + coerces to a Number from a String (or anything)
-			d.frequency = +d.frequency;
-			return d;
-		}
-		// var slicesData = [];
-		function replay(data) {
-			var options = ['crime_count', 'price_per_room'];
+		function initial_barchart() {
+			// console.log(data);
+			var data = barData;
+			var options = ['crime_count', 'price_per_room', 'income'];
 
 			data.forEach(function (d) {
 				d.valores = options.map(function (name) { return { name1: name, value: +d[name] }; });
 			});
-			// console.log(data);
-			// slicesData.push(data);
-			// console.log(slicesData);
-			// var slices=[]
-			// for (var i = 0; i < data.length; i++) {
-			//   slices.push(data.slice(0, i+1));
-			// }
-			// slices.forEach(function(slice, index){
-			//   setTimeout(function(){
-			// console.log(slice);
-			draw(data);
-			//   }, index * 300);
-			// });
-		}
 
-		function draw(data) {
-			// console.log(data);
-			// data.map(function(d){if (d.crime_count != undefined) {console.log(d.crime_count);}});
-			// measure the domain (for x, unique letters) (for y [0,maxFrequency])
-			// now the scales are finished and usable
 			x.domain(data.map(function (d) { return d.name; }));
-			x1.domain(['crime_count', 'price_per_room']).rangeRound([0, x.bandwidth()]);
-			y.domain([0, d3.max(data, function (d) { return d3.max(d.valores, function (d) { return d.value; }); })]);
-			// y.domain([0, d3.max(data, function(d) { return d.crime_count; })]);
-			// y1.domain([0, d3.max(data, function(d) { return d.price_per_room; })]);
+			x1.domain(['crime_count', 'income', 'price_per_room']).rangeRound([0, x.bandwidth()]);
+			y.domain([0, d3.max(data, function (d) { return d3.max(d.valores, function (d) { if (d.name1 == "crime_count" | d.name1 == "income") { return d.value; } }); })]);
+			y1.domain([0, d3.max(data, function (d) { return d3.max(d.valores, function (d) { if (d.name1 == "price_per_room") { return d.value; } }); })]);
 
-			// // another g element, this time to move the origin to the bottom of the svg element
-			// // someSelection.call(thing) is roughly equivalent to thing(someSelection[i])
-			// //   for everything in the selection\
-			// // the end result is g populated with text and lines!
 			svg.select('.x.axis').transition().duration(300).call(xAxis);
 
 			// // same for yAxis but with more transform and a title
-			svg.select(".y.axis").transition().duration(300).call(yAxis)
+			svg.select(".y.axis").transition().duration(300).call(yAxis);
 
-			svg.select(".y.axis.right").transition().duration(300).call(yAxisRight)
+			svg.select(".y.axis.right").transition().duration(300).call(yAxisRight);
 
-			// // THIS IS THE ACTUAL WORK!
-			// (data) is an array/iterable thing, second argument is an ID generator function
-			// bars.exit()
-			//   .transition()
-			//     .duration(300)
-			//   .attr("y", y(0))
-			//   .attr("height", height - y(0))
-			//   .style('fill-opacity', 1e-6)
-			//   .remove();
-			var bars = g.selectAll(".bar").data(data).enter().append("g")
-				.attr("class", "bar")
-				.attr("transform", function (d) { console.log(d.name); return "translate(" + x(d.name) + ",0)"; }); //data(data, function(d) { return d.valores; });
-			// bars
-			//   .enter().append("rect")
-			//     .attr("class", "bar");
+			var bars = g.selectAll(".bar")
+				.data(data);
+
+			bars.enter().append("g")
+				.attr("class", "bar").transition()
+				.duration(300)
+				.attr("transform", function (d) { return "translate(" + x(d.name) + ",0)"; });
+
+			var bar_rects = g.selectAll(".bar").selectAll("rect").data(function (d) { return d.valores; });
+
+			bar_rects
+				.enter().append("rect")
+				.attr("class", "rect")
+				.attr("stroke-width", 4)
+				.on("mousemove", function (d) {
+					console.log(d);
+					d3.select("#tooltip-chart")
+						.style("left", d3.event.pageX + "px")
+						.style("top", d3.event.pageY + "px")
+						.style("opacity", 1)
+						.style("visibility", "visible")
+						.html((d.name1) + "<br>" + (d.value));
+
+				})
+				.on("mouseout", function () {
+					// Hide the tooltip
+					d3.select("#tooltip-chart")
+						.style("visibility", "visible")
+						.style("opacity", 0);
+				})
+				.transition()
+				.duration(300)
+				.attr("x", function (d) {
+					return x1(d.name1);
+				})
+				.attr("width", x1.bandwidth())
+				.attr("y", function (d) { if (d.name1 == "crime_count" | d.name1 == "income") { return y(d.value); } else { return y1(d.value); } })
+				.attr("value", function (d) {
+					return d.name1;
+				})
+				.attr("height", function (d) { if (d.name1 == "crime_count" | d.name1 == "income") { return height - y(d.value); } else { return height - y1(d.value); } })
+				.style("fill", function (d) {
+					return color(d.name1);
+				});
+			// Legend
+			var legend = svg.selectAll(".legend")
+				.data(['Crime count', 'Price per room', 'Income'].slice())
+				.enter()
+				.append("g")
+				.attr("class", "legend")
+				.attr("transform", function (d, i) { return "translate(250," + (i + 1) * 20 + ")"; });
+
+			legend.append("rect")
+				.attr("x", width - 48)
+				.attr("width", 18)
+				.attr("height", 18)
+				.style("fill", color);
+
+			legend.append("text")
+				.attr("class", "legend-bar")
+				.attr("x", width - 54)
+				.attr("y", 9)
+				.attr("dy", ".35em")
+				.style("text-anchor", "end")
+				.text(function (d) { return d; });
 
 
-			// bars.exit().transition().duration(500)
-			//  .selectAll("rect")
-			//  .attr("height", 0)
-			//  .remove();
+		}
 
-			//exit 
+		function replay(data) {
+
+			var options = ['crime_count', 'income', 'price_per_room'];
+
+			data.forEach(function (d) {
+				d.valores = options.map(function (name) { return { name1: name, value: +d[name] }; });
+			});
+
+			draw(data);
+		}
+
+		var margin_info = { top: 20, right: 20, bottom: 150, left: 50 };
+		var width_info = 200;
+		var height_info = 150;
+
+		var chart_info = d3.select(".chart")
+			.attr("width", width_info + margin_info.left + margin_info.right)
+			.attr("height", height_info + margin_info.top + margin_info.bottom)
+			.append("g")
+			.attr("transform", "translate(" + margin_info.left + "," + margin_info.top + ")");
+
+		var xChart_info = d3.scaleBand()
+			.range([0, width_info]);
+
+		var yChart_info = d3.scaleLinear()
+			.range([height_info, 0]);
+
+		var xAxis_info = d3.axisBottom(xChart_info);
+		var yAxis_info = d3.axisLeft(yChart_info);
+
+		//set up axes
+		//left axis
+		chart_info.append("g")
+			.attr("class", "y axis info")
+			.call(yAxis_info)
+
+		//bottom axis
+		chart_info.append("g")
+			.attr("class", "xAxis info")
+			.style("font", "sans-serif")
+			.style("font-size", "10px")
+			.attr("transform", "translate(0," + height_info + ")")
+			.call(xAxis_info)
+			.selectAll("text")
+			.style("text-anchor", "end")
+			.attr("dx", "-.8em")
+			.attr("dy", ".15em")
+			.attr("transform", function (d) {
+				return "rotate(-90)";
+			});
+
+		//add labels
+		chart_info
+			.append("text")
+			.style("font", "sans-serif")
+			.style("font-size", "10px")
+			.attr("transform", "translate(-35," + (height_info + margin_info.bottom) / 2 + ") rotate(-90)")
+			.text("Crime rate");
+
+		chart_info
+			.append("text")
+			.style("font", "sans-serif")
+			.style("font-size", "10px")
+			.attr("transform", "translate(" + (width_info / 2) + "," + (height_info + margin_info.bottom - 5) + ")")
+			.text("Crime type");
+
+		draw_info(infoData);
+
+		function draw_info(values) {
+
+			var data = [];
+			// console.log(values);
+			var crime_types = ["arson", "burglary", "federal_offenses", "felonies_miscellaneous", "fraud_and_nsf_checks", "grand_theft_auto", "larceny_theft", "narcotics", "rape", "robbery", "sex_offenses"];
+			for (var key in values) {
+				if (crime_types.indexOf(key) > -1) {
+					data.push({ name: key, value: values[key] });
+				}
+			}
+			//set domain for the x axis
+			xChart_info.domain(data.map(function (d) { return d.name; }));
+			//set domain for y axis
+			yChart_info.domain([0, d3.max(data, function (d) { return +d.value; })]);
+
+			//get the width of each bar 
+			var barWidth = width_info / data.length;
+
+			//select all bars on the graph, take them out, and exit the previous data set. 
+			//then you can add/enter the new data set
+			var bars_info = chart_info.selectAll(".bar_info")
+				.remove()
+				.exit()
+				.data(data)
+			//now actually give each rectangle the corresponding data
+			bars_info.enter()
+				.append("rect")
+				.attr("class", "bar_info")
+				.attr("x", function (d, i) { return i * barWidth + 1 })
+				.attr("y", function (d) { return yChart_info(d.value); })
+				.attr("height", function (d) { return height_info - yChart_info(d.value); })
+				.attr("width", barWidth - 1)
+				.attr("fill", function (d) {
+					return "rgb(179,205,227)";
+				})
+				.on("mousemove", function (d) {
+					console.log(d);
+					d3.select("#tooltip-bar")
+						.style("left", d3.event.pageX + "px")
+						.style("top", d3.event.pageY + "px")
+						.style("opacity", 1)
+						.style("visibility", "visible")
+						.html((d.name) + "<br>" + (d.value));
+				})
+				.on("mouseout", function () {
+					// Hide the tooltip
+					d3.select("#tooltip-bar")
+						.style("visibility", "hidden")
+						.style("opacity", 0);
+				});
+			//left axis
+			chart_info.select('.y.info')
+				.call(yAxis_info)
+			//bottom axis
+			chart_info.select('.xAxis.info')
+				.attr("transform", "translate(0," + height_info + ")")
+				.call(xAxis_info)
+				.selectAll("text")
+				.style("text-anchor", "end")
+				.attr("dx", "-.8em")
+				.attr("dy", ".15em")
+				.attr("transform", function (d) {
+					return "rotate(-90)";
+				});
+		}
+
+		var width_pie = 250,
+			height_pie = 250,
+			radius_pie = Math.min(width_pie, height_pie) / 2;
+
+		var color_pie = d3.scaleOrdinal(d3.schemeCategory10);
+
+		var pie = d3.pie()
+			.value(function (d) { console.log(d); return d.value; })
+			.sort(null);
+
+		var arc_pie = d3.arc()
+			.innerRadius(radius_pie - 60)
+			.outerRadius(radius_pie - 20);
+
+		var svg_pie = d3.select("#pie")
+			.attr("width", width_pie)
+			.attr("height", height_pie)
+			.append("g")
+			.attr("transform", "translate(" + width_pie / 2 + "," + height_pie / 2 + ")");
+
+		var path_pie = svg_pie.selectAll("path");
+
+
+		draw_pie(infoData);
+
+
+		function draw_pie(values) {
+
+			pie_data = [];
+			// console.log(values);
+			var room_types = ["shared_room", "private_room", "entire_home_apt"];
+			for (var key in values) {
+				if (room_types.indexOf(key) > -1) {
+					pie_data.push({ name: key, value: values[key] });
+				}
+			}
+
+
+
+			var g = svg_pie.selectAll('.arc')
+				.data(pie(pie_data))
+				.attr('class', 'arc')
+				.enter().append('g');
+
+
+			g.append('path')
+				.attr('d', arc_pie)
+				.style('fill', function (d, i) { return color(i); })
+				.on("mouseover", function (d) {
+					var total = d3.sum(pie_data.map(function (d) {                // NEW
+						return d.value;                                           // NEW
+					}));                                                        // NEW
+					var percent = Math.round(1000 * d.data.value / total) / 10; // NEW
+					d3.select("#tooltip-pie")
+						.style("left", d3.event.pageX + "px")
+						.style("top", d3.event.pageY + "px")
+						.style("opacity", 1)
+						.style("visibility", "visible")
+						.html((d.data.name) + "<br>" + (percent) + "%");
+				})
+				.on("mouseout", function () {
+					// Hide the tooltip
+					d3.select("#tooltip-pie")
+						.style("visibility", "hidden")
+						.style("opacity", 0);
+				});
+
+			var legendRectSize = 18;
+			var legendSpacing = 4;
+
+			var legend_pie = svg_pie.selectAll('.legend_pie')
+				.data(["shared_room", "private_room", "entire_home_apt"])
+				.enter()
+				.append('g')
+				.attr('class', 'legend_pie')
+				.attr('transform', function (d, i) {
+					var height = legendRectSize + legendSpacing;
+					var offset = height_pie * color.domain().length / 5;
+					var horz = -2 * legendRectSize;
+					var vert = 22 * i - 30;
+					return 'translate(' + horz + ',' + vert + ')';
+				});
+
+			legend_pie.append('rect')
+				.attr('width', legendRectSize)
+				.attr('height', legendRectSize)
+				.style('fill', color)
+				.style('stroke', color);
+
+			legend_pie.append('text')
+				.attr('x', legendRectSize + legendSpacing)
+				.attr('y', legendRectSize - legendSpacing)
+				.text(function (d) { return d; });
+
+		}
+
+
+
+		function draw(data) {
+
+			x.domain(data.map(function (d) { return d.name; }));
+			x1.domain(['crime_count', 'income', 'price_per_room']).rangeRound([0, x.bandwidth()]);
+
+			y.domain([0, d3.max(data, function (d) { return d3.max(d.valores, function (d) { if (d.name1 == "crime_count" | d.name1 == "income") { return d.value; } }); })]);
+
+			y1.domain([0, d3.max(data, function (d) { return d3.max(d.valores, function (d) { if (d.name1 == "price_per_room") { return d.value; } }); })]);
+
+
+			svg.select('.x.axis').transition().duration(300).call(xAxis);
+
+			// // same for yAxis but with more transform and a title
+			svg.select(".y.axis").transition().duration(300).call(yAxis);
+
+			svg.select(".y.axis.right").transition().duration(300).call(yAxisRight);
+
+			var bars = g.selectAll(".bar")
+				.data(data);
+
+			bars.transition()
+				.duration(300)
+				.attr("transform", function (d) { return "translate(" + x(d.name) + ",0)"; });
+
+			bars.enter().append("g")
+				.attr("class", "bar").transition()
+				.duration(300)
+				.attr("transform", function (d) { return "translate(" + x(d.name) + ",0)"; });
+
 			bars.exit()
 				.transition()
 				.duration(300)
-				.attr("width", 0)
-				.remove();
-			bars.selectAll("rect").exit()
-				.transition()
-				.duration(300)
-				.attr("width", 0)
+				.style('fill-opacity', 1e-6)
 				.remove();
 
-			bars.selectAll("rect")
-				.data(function (d) { return d.valores; })
+
+			var bar_rects = g.selectAll(".bar").selectAll("rect").data(function (d) { return d.valores; });
+
+			bar_rects.attr("stroke-width", 4)
+				.transition()
+				.duration(300)
+				.attr("x", function (d) { return x1(d.name1); })
+				.attr("width", x1.bandwidth())
+				.attr("y", function (d) { if (d.name1 == "crime_count" | d.name1 == "income") { return y(d.value); } else { return y1(d.value); } })
+				.attr("value", function (d) { return d.name1; })
+				.attr("height", function (d) { if (d.name1 == "crime_count" | d.name1 == "income") { return height - y(d.value); } else { return height - y1(d.value); } })
+				.style("fill", function (d) { return color(d.name1); });
+
+
+			bar_rects
 				.enter().append("rect")
+				.attr("class", "rect")
 				.attr("stroke-width", 4)
 				.transition()
 				.duration(300)
-				.attr("x", function (d) { console.log(x1(d.name1)); return x1(d.name1); })
+				.attr("x", function (d) { return x1(d.name1); })
 				.attr("width", x1.bandwidth())
-				.attr("y", function (d) { return y(d.value); })
+				.attr("y", function (d) { if (d.name1 == "crime_count" | d.name1 == "income") { return y(d.value); } else { return y1(d.value); } })
 				.attr("value", function (d) { return d.name1; })
-				.attr("height", function (d) { return height - y(d.value); })
-				.style("fill", function (d) { return color(d.name1); });;
-
-			// bar.selectAll("rect")
-			//   .data(function(d) { return d.valores; })
-			//   .enter().append("rect")
-			//   .attr("width", x1.rangeBand())
-			//   .attr("x", function(d) { return x1(d.name); })
-			//   .attr("y", function(d) { return y(d.value); })
-			//   .attr("value", function(d){return d.name;})
-			//   .attr("height", function(d) { return height - y(d.value); })
-			//   .style("fill", function(d) { return color(d.name); });
-
-		}
-
-		function create_popupbar(data, layer, feature) {
-		var div = document.createElement('div');;
-			div.className = 'popupGraph'; 
-			div.innerHTML = '<svg/>';
- 			var popup = L.popup().setContent(div);
-			layer.bindPopup(popup);
-
-			var values = feature.properties;
-			var data = [
-				{ name: "Educ", value: values["Educ"] },
-				{ name: "Earnings", value: values["Earnings"] },
-				{ name: "Ind", value: values["Ind"] },
-				{ name: "Housing", value: values["Housing"] },
-				{ name: "AccToSer", value: values["AccToSer"] },
-				{ name: "EcPerfInd", value: values["EcPerfInd"] }
-			];
-			var margin = { top: 20, right: 30, bottom: 40, left: 40 },
-				width = 250 - margin.left - margin.right,
-				height = 200 - margin.top - margin.bottom,
-				barHeight = height / data.length;
-
-
-			var x = d3.scaleLinear()
-				.domain([0, d3.max(data, function (d) { return d.value; })])
-				.range([0, width]);
-
-			var xAxis = d3.axisBottom().scale(x);
-
-			var svg = d3.select(div).select("svg")
-				.attr("width", width + margin.left + margin.right)
-				.attr("height", height + margin.top + margin.bottom)
-				.append("g")
-				.attr("transform", "translate(" + margin.left + "," + margin.top + ")")
-				.classed("chart", true);
-
-			svg.append("g")
-				.attr("class", "x axis")
-				.attr("transform", "translate(0," + height + ")")
-				.call(xAxis);
-
-			var bar = svg.selectAll("g.bar")
-				.data(data)
-				.enter()
-				.append("g")
-				.attr("transform", function (d, i) { return "translate(0," + i * barHeight + ")"; });
-
-			bar.append("rect")
-				.attr("width", function (d) { return x(d.value); })
-				.attr("height", barHeight - 1);
-
-			bar.append("text")
-				.attr("x", function (d) { return x(d.value) - 3; })
-				.attr("y", barHeight / 2)
-				.attr("dy", ".35em")
-				.text(function (d) { return d.name; });
-		}
-
-		
-		function create_popuppie(data, layer, feature) {
-			var div = document.createElement('div');;
-			div.className = 'popupPie'; 
-			div.innerHTML = '<svg/>';
- 			var popup = L.popup().setContent(div);
-			layer.bindPopup(popup);
-
-			//var values = feature.properties;
-			var data = [{ crime: "ARSON", count: 100 }, { crime: "BURGLARY", count: 159 }, { crime: "FEDERAL OFFENSES WITH MONEY", count: 90 }];
-
-			var margin = { top: 20, right: 30, bottom: 40, left: 40 },
-				width = 250 - margin.left - margin.right,
-				height = 200 - margin.top - margin.bottom,
-				radius = Math.min(width, height) / 2;
-
-			var svg = d3.select(div).select("svg")
-				.attr("width", width + margin.left + margin.right)
-				.attr("height", height + margin.top + margin.bottom);
-
-			g = svg.append("g").attr("transform", "translate(" + width / 2 + "," + height / 2 + ")").classed("chart", true);
-
-			//g = svg.append("g").attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
-			var color = d3.scaleOrdinal(["#EF255F", "#FCCF4D", "#49BEB7"]);
-			var pie = d3.pie()
-				.sort(null)
-				.value(function (d) { return d.count; });
-			var path = d3.arc()
-				.outerRadius(radius - 10)
-				.innerRadius(0);
-
-			var label = d3.arc()
-				.outerRadius(radius - 40)
-				.innerRadius(radius - 40);
-
-			var arc = g.selectAll(".arc")
-				.data(pie(data))
-				.enter().append("g")
-				.attr("class", "arc");
-
-			arc.append("path")
-				.attr("d", path)
-				.attr("fill", function (d) { return color(d.data.crime); });
-
-			arc.append("text")
-				.attr("transform", function (d) { return "translate(" + label.centroid(d) + ")"; })
-				.attr("dy", "0.35em")
-				.text(function (d) { return d.data.crime; });
+				.attr("height", function (d) { if (d.name1 == "crime_count" | d.name1 == "income") { return height - y(d.value); } else { return height - y1(d.value); } })
+				.style("fill", function (d) { return color(d.name1); });
 
 
 
-
-			/////////////////////////////////////////////////////////////////
-
-			//barHeight = height / data.length;
-
+			bar_rects.exit()
+				.transition()
+				.duration(300)
+				.style('fill-opacity', 1e-6)
+				.remove();
 
 
 		}
