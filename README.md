@@ -9,4 +9,5 @@ Airbnb’s popularity is increasing exponentially over time. When you plan a tri
 So we've decided why not use this opportunity to make something practical which we ourselves can use in everday life? Price and safety are the two most important factors that people consider before looking for accomodation! So here we try to determine what factors exactly affect Airbnb rentals.
 
 The demo is available at the following url: [Demo](http://www-scf.usc.edu/~patted/mindbenders.html)
+
 The link to the PDF of the presentation : [PPT](https://github.com/INF554Fall17/a7-mind-benders/blob/master/Presentation.pdf)
